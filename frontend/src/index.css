@@ -1,0 +1,216 @@
+/* ─── Fonts ──────────────────────────────────────────────────── */
+@import "@fontsource/newsreader/400.css";
+@import "@fontsource/newsreader/500.css";
+@import "@fontsource/newsreader/600.css";
+@import "@fontsource/newsreader/400-italic.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/noto-naskh-arabic/400.css";
+@import "@fontsource/noto-naskh-arabic/500.css";
+@import "@fontsource/noto-naskh-arabic/600.css";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/600.css";
+
+/* ─── Tailwind v4 ────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* ─── Design tokens ─────────────────────────────────────────────
+   Source of truth: Mada_Index_Design_Language.md
+   Three colour roles, strictly apart:
+     1. Neutrals  — chrome, text, structure (never a hue)
+     2. Platform  — identity only (charts, badges, legends)
+     3. Benchmark — meaning only (good / bad / neutral)
+   Dark mode: swap these variables only — no other changes needed.
+────────────────────────────────────────────────────────────────── */
+@theme {
+  /* Surfaces & borders */
+  --color-paper:         #FAF6EE;
+  --color-raised:        #FFFDF7;
+  --color-tile:          #F3EEE3;
+  --color-border:        #E9E0CF;
+  --color-border-strong: #D6CABA;
+
+  /* Text */
+  --color-ink:     #241F18;
+  --color-muted:   #6B6253;
+  --color-faint:   #8E826B;
+  --color-fainter: #A99C84;
+
+  /* Platform palette (identity only — never chrome, never meaning) */
+  --color-platform-facebook:   #1877F2;
+  --color-platform-website:    #E37400;
+  --color-platform-x:          #15181C;
+  --color-platform-ig-posts:   #8A3AB9;
+  --color-platform-ig-stories: #D4537E;
+  --color-platform-youtube:    #C0392B;
+  --color-platform-linkedin:   #08538D;
+  --color-platform-newsletter: #E0A526;
+  --color-platform-podcast:    #1DB954;
+
+  /* Benchmark trio (meaning only — never identity) */
+  --color-good-bg:      #EAF3DE;
+  --color-good-text:    #27500A;
+  --color-good-solid:   #3B6D11;
+  --color-bad-bg:       #FCEBEB;
+  --color-bad-text:     #A32D2D;
+  --color-neutral-bg:   #F1EFE8;
+  --color-neutral-text: #5F5E5A;
+
+  /* Teal sequential ramp — velocity + heatmap (light → dark = more) */
+  --color-teal-1: #E4F2EC;
+  --color-teal-2: #BFE0D2;
+  --color-teal-3: #8FCBB5;
+  --color-teal-4: #5FB498;
+  --color-teal-5: #2F7D63;
+  --color-teal-6: #1C4A3B;
+
+  /* Typography */
+  --font-display: "Newsreader", "Noto Naskh Arabic", Georgia, serif;
+  --font-ui:      "IBM Plex Sans", "IBM Plex Sans Arabic", system-ui, sans-serif;
+
+  /* Type scale — px so these are independent of root font-size */
+  --text-display-xl:    40px;
+  --text-display-l:     30px;
+  --text-title-page:    26px;
+  --text-title-section: 20px;
+  --text-title-item:    17px;
+  --text-title-row:     14px;
+  --text-body:          14px;
+  --text-data:          13px;
+  --text-label:         12px;
+  --text-caption:       11px;
+
+  /* Radii */
+  --radius-input:   6px;
+  --radius-btn:    10px;
+  --radius-thumb:  10px;
+  --radius-card:   12px;
+  --radius-section:16px;
+  --radius-pill:  999px;
+  --radius-bar:     3px; /* chart bars */
+
+  /* Overlay shadow (dropdowns, tooltips, modals — the only shadow) */
+  --shadow-overlay: 0 8px 26px rgba(74,58,38,.14), 0 2px 5px rgba(74,58,38,.08);
+}
+
+/* ─── Base reset ─────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular lining figures — used on every number in the dashboard */
+.tabular-nums {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Arabic content — auto direction + Arabic-tuned fonts */
+[lang="ar"], .ar {
+  direction: rtl;
+  font-family: "Noto Naskh Arabic", "Newsreader", Georgia, serif;
+}
+
+.ar-ui {
+  direction: rtl;
+  font-family: "IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;
+}
+
+/* ─── Accessibility: focus rings ─────────────────────────────────
+   Visible keyboard focus on all interactive elements.
+   :focus-visible fires only for keyboard navigation — not mouse clicks.
+──────────────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline:        2px solid var(--color-ink);
+  outline-offset: 2px;
+  border-radius:  2px;
+}
+
+/* Pill-shaped elements (FilterChip, Toggle, Tabs) get matching radius */
+button:focus-visible {
+  border-radius: var(--radius-btn);
+}
+
+/* ─── Skeleton shimmer ───────────────────────────────────────────
+   §12: "warm skeletons … with a faint shimmer"
+   Wave pattern: opacity pulses gently; stagger via animation-delay
+   on sibling .skeleton-shimmer elements for a left-to-right wave.
+──────────────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%, 100% { opacity: 1;    }
+  50%       { opacity: 0.55; }
+}
+
+.skeleton-shimmer {
+  animation:          shimmer 1.6s ease-in-out infinite;
+  animation-fill-mode: both;
+}
+
+/* Stagger siblings so the shimmer "travels" across the row */
+.skeleton-shimmer:nth-child(2) { animation-delay: 0.1s; }
+.skeleton-shimmer:nth-child(3) { animation-delay: 0.2s; }
+.skeleton-shimmer:nth-child(4) { animation-delay: 0.3s; }
+.skeleton-shimmer:nth-child(5) { animation-delay: 0.4s; }
+
+/* ─── Chart grow-in ──────────────────────────────────────────────
+   §12: "a single grow-in on a chart's first render; no parallax, no bounce."
+   Applied to the card wrapper around each Recharts component.
+──────────────────────────────────────────────────────────────────── */
+@keyframes chartGrowIn {
+  from {
+    opacity:   0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity:   1;
+    transform: translateY(0);
+  }
+}
+
+.chart-grow-in {
+  animation:                chartGrowIn 300ms ease-out both;
+  animation-fill-mode:      both;
+}
+
+/* ─── Hover transitions ──────────────────────────────────────────
+   §12: "120–160ms ease on hovers/expands"
+   Global baseline — individual components may override.
+──────────────────────────────────────────────────────────────────── */
+button {
+  transition: opacity 120ms ease, background-color 140ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+/* ─── Print styles (Reports view) ───────────────────────────────── */
+@media print {
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background-color: white;
+    color: black;
+  }
+
+  /* Ensure the report content uses full page width */
+  main > * {
+    max-width: 100% !important;
+    padding:   0 !important;
+  }
+}
