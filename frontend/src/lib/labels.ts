@@ -3,8 +3,8 @@ import type { Format, Section, ContentType, Language } from '../data/types'
 export const FORMAT_LABELS: Record<Format, string> = {
   'news':                  'News',
   'news-feature':          'News Feature',
-  'feature-investigation': 'Feature',     // Airtable singleSelect value is "Feature"
-  'op-ed':                 'Opinion',     // Airtable singleSelect value is "Opinion"
+  'feature-investigation': 'Feature',     // Article Type lookup value is "Feature"
+  'op-ed':                 'Opinion',     // Article Type lookup value is "Opinion"
   'panorama':              'Panorama',
   'cartoon':               'Cartoon',
   'newsletter':            'Newsletter',

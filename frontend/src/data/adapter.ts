@@ -158,6 +158,8 @@ function mapFormat(postType: string): Format | undefined {
   return undefined
 }
 
+// Maps Stories.Article Type lookup values (= WP Post Type single-select names)
+// to our Format enum. Values are capitalised e.g. "News", "Feature", "Opinion".
 function mapStoryFormat(val: string): Format | undefined {
   switch (val.trim().toLowerCase()) {
     case 'feature':  return 'feature-investigation'
@@ -437,7 +439,15 @@ export function buildSdkCache(
         memberIds:       members.map(c => c.id),
         publishedFirst:  ss(r, 'First Published'),
         publishedLast:   ss(r, 'Last Published'),
-        format:          ss(r, 'Format') ? mapStoryFormat(ss(r, 'Format')) : anchor.format,
+        format:          (() => {
+          // Article Type is a lookup of WP Articles.Post Type → returns [{ id, name, color }]
+          const at = sla(r, 'Article Type')
+          const first = at[0]
+          const t = first && typeof first === 'object' && 'name' in (first as object)
+            ? String((first as { name: string }).name)
+            : typeof first === 'string' ? first : ''
+          return t ? mapStoryFormat(t) : anchor.format
+        })(),
         section:         topSection,
         topics:          topicSet.size ? [...topicSet] : undefined,
         rollup: {

@@ -400,7 +400,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <FilterDropdown label="Section" options={sectionOptions} value={filterSection} onChange={setFilterSection as (v: string | undefined) => void} />
-          <FilterDropdown label="Format"  options={formatOptions}  value={filterFormat}  onChange={setFilterFormat  as (v: string | undefined) => void} />
+          <FilterDropdown label="Story type"  options={formatOptions}  value={filterFormat}  onChange={setFilterFormat  as (v: string | undefined) => void} />
           <FilterDropdown label="Topic"   options={topicOptions}   value={filterTopic}   onChange={setFilterTopic} />
           {authorOptions.length > 0 && (
             <FilterDropdown label="Author" options={authorOptions} value={filterAuthor} onChange={setFilterAuthor as (v: string | undefined) => void} />

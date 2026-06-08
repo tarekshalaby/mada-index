@@ -237,7 +237,7 @@ export function ReportsView({ period = 'may-26', onSelectStory }: ReportsViewPro
             onClick={() => {
               // Build CSV from the period content
               const rows: string[][] = [
-                ['Title', 'Platform', 'Published', 'Format', 'Impressions', 'Weighted Engagement', 'EQR', 'Site Clicks'],
+                ['Title', 'Platform', 'Published', 'Story type', 'Impressions', 'Weighted Engagement', 'EQR', 'Site Clicks'],
               ]
               for (const c of allContent) {
                 rows.push([

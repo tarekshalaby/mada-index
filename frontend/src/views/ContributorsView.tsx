@@ -369,7 +369,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {sectionOptions.length > 0 && <FilterDropdown label="Section" options={sectionOptions} value={filterSection} onChange={setFilterSection as (v: string | undefined) => void} />}
-          {formatOptions.length  > 0 && <FilterDropdown label="Format"  options={formatOptions}  value={filterFormat}  onChange={setFilterFormat  as (v: string | undefined) => void} />}
+          {formatOptions.length  > 0 && <FilterDropdown label="Story type"  options={formatOptions}  value={filterFormat}  onChange={setFilterFormat  as (v: string | undefined) => void} />}
           {topicOptions.length   > 0 && <FilterDropdown label="Topic"   options={topicOptions}   value={filterTopic}   onChange={setFilterTopic} />}
           {hasFilter && (
             <button onClick={() => { setFilterSection(undefined); setFilterFormat(undefined); setFilterTopic(undefined) }}
