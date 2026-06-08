@@ -39,6 +39,19 @@ export function setCache(cache: Cache): void {
   _sdkCache = cache
 }
 
+// ISO timestamp of the most recent Make.com scenario run (from Sync Settings).
+let _lastSyncTime: string | null = null
+
+/** Called by SdkProvider after computing the latest 'Last Run Ended' from Sync Settings. */
+export function setLastSyncTime(iso: string | null): void {
+  _lastSyncTime = iso
+}
+
+/** Returns ISO timestamp of the most recent sync, or null if not yet known. */
+export function getLastSyncTime(): string | null {
+  return _lastSyncTime
+}
+
 // ─── SDK record interface ─────────────────────────────────────────────────────
 //
 // getCellValue() return types by Airtable field type:

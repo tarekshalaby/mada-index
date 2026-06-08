@@ -7,7 +7,7 @@ import { PlatformsView }         from './views/PlatformsView'
 import { ReportsView }           from './views/HeadlinesView'
 import { ContributorsView }      from './views/ContributorsView'
 import { PeriodBar, type Period } from './components/DateRangeControl'
-import { initAdapter }           from './data/adapter'
+import { initAdapter, getLastSyncTime } from './data/adapter'
 
 export type View = 'overview' | 'stories' | 'content' | 'platforms' | 'team' | 'reports'
 
@@ -95,11 +95,6 @@ export default function App() {
       >
         <div style={{ maxWidth: 1240, margin: '0 auto', padding: '0 28px', display: 'flex', alignItems: 'stretch' }}>
 
-          {/* Wordmark */}
-          <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-section)', fontWeight: 600, color: 'var(--color-ink)', paddingRight: 32, display: 'flex', alignItems: 'center', flexShrink: 0, letterSpacing: '-0.01em' }}>
-            Mada Index
-          </div>
-
           {/* Primary nav tabs */}
           <nav style={{ display: 'flex', alignItems: 'stretch', flex: 1 }}>
             {NAV_ITEMS.map(({ id, label, icon }) => {
@@ -133,8 +128,25 @@ export default function App() {
             })}
           </nav>
 
-          {/* Right side: Reports button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {/* Right side: last-sync label + Reports button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {(() => {
+              const iso = getLastSyncTime()
+              if (!iso) return null
+              const d = new Date(iso)
+              const label = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                + ' · ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+              return (
+                <span style={{
+                  fontFamily: 'var(--font-ui)',
+                  fontSize:   'var(--text-caption)',
+                  color:      'var(--color-fainter)',
+                  whiteSpace: 'nowrap',
+                }}>
+                  Updated {label}
+                </span>
+              )
+            })()}
             <button
               onClick={() => setActiveView('reports')}
               style={{

@@ -5,13 +5,14 @@
 
 import React, { useMemo }          from 'react'
 import { useBase, useRecords }     from '@airtable/blocks/interface/ui'
-import { buildSdkCache, setCache } from './adapter'
-import type { SdkRec }             from './adapter'
+import { buildSdkCache, setCache, setLastSyncTime, ss } from './adapter'
+import type { SdkRec }                                   from './adapter'
 
 const REQUIRED_TABLES = [
   'Stories', 'Content', 'WordPress Articles', 'Contributors', 'Followers',
   'Facebook Posts', 'Instagram Posts', 'Instagram Stories', 'X Posts',
   'LinkedIn Posts', 'YouTube Videos', 'MailChimp Emails', 'Podcast Episodes',
+  'Sync Settings',
 ]
 
 // Critical Content fields — without these, period filtering and KPIs can't work.
@@ -73,6 +74,7 @@ function SdkProviderInner({
   const rawYt        = useRecords(base.getTableByName('YouTube Videos'))     as SdkRec[]
   const rawMc        = useRecords(base.getTableByName('MailChimp Emails'))   as SdkRec[]
   const rawPod       = useRecords(base.getTableByName('Podcast Episodes'))   as SdkRec[]
+  const rawSync      = useRecords(base.getTableByName('Sync Settings'))       as SdkRec[]
 
   const cache = useMemo(
     () =>
@@ -92,6 +94,15 @@ function SdkProviderInner({
   // Write to module-level cache synchronously during render.
   // SdkProviderInner wraps App, so child views always see current data.
   setCache(cache)
+
+  // Latest 'Last Run Ended' across all Sync Settings rows = when data was last refreshed.
+  // ss() handles Date objects (interface-alpha SDK returns dateTime as JS Date).
+  const latestSync = rawSync
+    .map(r => ss(r, 'Last Run Ended'))
+    .filter(Boolean)
+    .sort()
+    .pop() ?? null
+  setLastSyncTime(latestSync)
 
   // ── Diagnostic ────────────────────────────────────────────────────────────
   // Inspect which fields the Interface Designer exposes to getCellValue().
