@@ -88,10 +88,10 @@ const DEAD_BAND = 0.01
 
 export function computeBenchmarkState(
   current: number,
-  previous: number,
+  previous: number | null,
   polarity: MetricPolarity
 ): BenchmarkState {
-  if (previous === 0) return 'neutral'
+  if (previous === null || previous === 0) return 'neutral'
   const ratio = (current - previous) / Math.abs(previous)
   if (Math.abs(ratio) < DEAD_BAND) return 'neutral'
   if (polarity === 'neutral-volume') return 'neutral'
@@ -101,8 +101,8 @@ export function computeBenchmarkState(
   return 'neutral'
 }
 
-export function computeDeltaPct(current: number, previous: number): number | null {
-  if (previous === 0) return null
+export function computeDeltaPct(current: number, previous: number | null): number | null {
+  if (previous === null || previous === 0) return null
   return ((current - previous) / Math.abs(previous)) * 100
 }
 
@@ -122,10 +122,18 @@ export function platformForType(type: ContentType): Platform {
 }
 
 // ─── Number formatting ────────────────────────────────────────────────────────
+// One decimal only when the abbreviated value is < 10 (e.g. 2.5K, 7.4K, 1.2M).
+// At >= 10, drop the decimal (55K, 919K, 437K, 23M).
 export function formatCompact(n: number): string {
   const v = Math.round(n)
-  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
-  if (v >= 1_000)     return `${(v / 1_000).toFixed(1)}K`
+  if (v >= 1_000_000) {
+    const m = v / 1_000_000
+    return m >= 10 ? `${Math.round(m)}M` : `${m.toFixed(1)}M`
+  }
+  if (v >= 1_000) {
+    const k = v / 1_000
+    return k >= 10 ? `${Math.round(k)}K` : `${k.toFixed(1)}K`
+  }
   return v.toLocaleString()
 }
 

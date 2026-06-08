@@ -64,14 +64,31 @@ export function getFormatPerformanceData(
     groups[format][c.platform].count += 1
   }
 
-  return Object.entries(groups).map(([fmt, platforms]) => {
+  // Pin x-axis order so it never re-sorts when metric or language toggles.
+  const FORMAT_AXIS_ORDER: Format[] = [
+    'news', 'news-feature', 'feature-investigation', 'op-ed',
+    'panorama', 'cartoon', 'newsletter', 'podcast', 'video',
+    'breaking-news', 'story-of-the-day', 'platform-native',
+  ]
+
+  const buildRow = (fmt: string, platforms: Record<string, { sum: number; count: number }>): FormatPerfRow => {
     const row: FormatPerfRow = { format: FORMAT_LABELS[fmt as Format] ?? fmt }
     for (const [plat, { sum, count }] of Object.entries(platforms)) {
       const avg = count > 0 ? Math.round(sum / count) : 0
       ;(row as unknown as Record<string, unknown>)[plat] = avg
     }
     return row
-  })
+  }
+
+  const knownRows = FORMAT_AXIS_ORDER
+    .filter(fmt => groups[fmt])
+    .map(fmt => buildRow(fmt, groups[fmt]))
+
+  const otherRows = Object.entries(groups)
+    .filter(([fmt]) => !FORMAT_AXIS_ORDER.includes(fmt as Format))
+    .map(([fmt, platforms]) => buildRow(fmt, platforms))
+
+  return [...knownRows, ...otherRows]
 }
 
 // ─── 2. Publishing velocity ────────────────────────────────────────────────────
@@ -111,16 +128,17 @@ const PLATFORM_DISPLAY: Record<string, string> = {
   'podcast':    'Podcast',
 }
 
-// Platform brand colours for the 'type' segmentation mode
+// Platform brand colours for the 'type' segmentation mode.
+// Must match PLATFORM_CONFIG in PlatformBadge.tsx exactly.
 const PLATFORM_VELOCITY_COLORS: Record<string, string> = {
-  'Website':    '#237A3C',
+  'Website':    '#E37400',
   'Facebook':   '#1877F2',
-  'Instagram':  '#E1306C',
-  'X':          '#657786',
-  'LinkedIn':   '#0A66C2',
-  'YouTube':    '#FF0000',
-  'Newsletter': '#2F7D63',
-  'Podcast':    '#8B5CF6',
+  'Instagram':  '#8A3AB9',
+  'X':          '#15181C',
+  'LinkedIn':   '#08538D',
+  'YouTube':    '#C0392B',
+  'Newsletter': '#E0A526',
+  'Podcast':    '#1DB954',
 }
 
 export type VelocitySegment = 'format' | 'type'

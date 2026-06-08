@@ -9,8 +9,8 @@ interface KpiTileProps {
   label: string
   icon?: ReactNode
   value: string         // pre-formatted display value ("2.4M", "38.2h", etc.)
-  current: number       // raw value — used for delta calculation
-  previous: number
+  current: number           // raw value — used for delta calculation
+  previous: number | null   // null = no prior data → delta chip shows "—"
   polarity?: MetricPolarity
 }
 

@@ -467,7 +467,15 @@ export function buildSdkCache(
   // ── 6. Followers ───────────────────────────────────────────────────────────
 
   const followers: FollowersSnapshot[] = rawFollowers
-    .filter(r => !!ss(r, 'Snapshot Date'))
+    .filter(r => {
+      if (!ss(r, 'Snapshot Date')) return false
+      // Exclude "Website Arabic" and "Website English" rows — these are GA
+      // article-pageview ceilings used as a Penetration denominator, not real
+      // follower/subscriber counts. Including them overstates Total Followers.
+      const name = ss(r, 'Platform').toLowerCase()
+      if (name === 'website arabic' || name === 'website english') return false
+      return true
+    })
     .map((r, i) => ({
       id:            `fl-${i}`,
       platform:      mapFollowerPlatform(ss(r, 'Platform')),
@@ -614,6 +622,17 @@ export function getLatestFollowerTotal(): number {
   return Object.values(latest).reduce((sum, n) => sum + n, 0)
 }
 
+/** Returns false when there is only one snapshot per platform (no meaningful delta). */
+export function hasSufficientFollowerHistory(): boolean {
+  const snaps = _sdkCache?.followers ?? SAMPLE_FOLLOWERS
+  const countByPlatform: Record<string, number> = {}
+  for (const snap of snaps) {
+    countByPlatform[snap.platform] = (countByPlatform[snap.platform] ?? 0) + 1
+  }
+  // Need at least 2 snapshots for at least one platform to compute a real delta.
+  return Object.values(countByPlatform).some(n => n >= 2)
+}
+
 export interface PeriodTotals {
   impressions:           number
   weightedEngagement:    number
@@ -715,6 +734,41 @@ export function getTopicSummaries(limit = 5, period?: string): TopicSummary[] {
         storyCount:          e.storyCount          + 1,
       })
     }
+  }
+  return [...map.values()]
+    .sort((a, b) => b.weightedEngagement - a.weightedEngagement)
+    .slice(0, limit)
+}
+
+export interface SeriesSummary {
+  series: string
+  weightedEngagement: number
+  impressions: number
+  storyCount: number
+}
+
+export function getSeriesSummaries(limit = 5, period?: string): SeriesSummary[] {
+  let stories = _sdkCache?.stories ?? SAMPLE_STORIES
+  if (period && _sdkCache) {
+    const range = periodToRange(period)
+    if (range) {
+      const periodContent = contentInRange(range.start, range.end)
+      const storyIds = new Set(
+        periodContent.map(c => c.storyId).filter(Boolean) as string[],
+      )
+      stories = stories.filter(s => storyIds.has(s.id))
+    }
+  }
+  const map = new Map<string, SeriesSummary>()
+  for (const story of stories) {
+    if (!story.series) continue
+    const e = map.get(story.series) ?? { series: story.series, weightedEngagement: 0, impressions: 0, storyCount: 0 }
+    map.set(story.series, {
+      series:             e.series,
+      weightedEngagement: e.weightedEngagement + story.rollup.weightedEngagement,
+      impressions:        e.impressions         + story.rollup.impressions,
+      storyCount:         e.storyCount          + 1,
+    })
   }
   return [...map.values()]
     .sort((a, b) => b.weightedEngagement - a.weightedEngagement)

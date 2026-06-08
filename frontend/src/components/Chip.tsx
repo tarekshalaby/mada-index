@@ -11,7 +11,7 @@ import type { MetricPolarity, BenchmarkState } from '../data/types'
 
 interface ChipProps {
   current: number
-  previous: number
+  previous: number | null   // null = no prior data → shows "—" with neutral styling
   polarity?: MetricPolarity
 }
 

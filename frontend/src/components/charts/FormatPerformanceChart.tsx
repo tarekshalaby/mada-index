@@ -4,7 +4,7 @@
 // Metric toggle: Weighted Engagement | Impressions | Site Clicks.
 // Language toggle: Both | Arabic | English.
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   ResponsiveContainer, ComposedChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -39,10 +39,13 @@ const METRIC_SUBTITLE: Record<FormatMetric, string> = {
   siteClicks:  'Avg Site Clicks per piece',
 }
 
-function SwatchLegend() {
+function SwatchLegend({ activePlatforms, hasWebsite }: {
+  activePlatforms: ReadonlyArray<typeof BAR_PLATFORMS[number]>
+  hasWebsite: boolean
+}) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px 16px', marginBottom: 16 }}>
-      {BAR_PLATFORMS.map(p => (
+      {activePlatforms.map(p => (
         <div key={p} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, backgroundColor: PLATFORM_CONFIG[p].color, flexShrink: 0 }} />
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)' }}>
@@ -50,12 +53,14 @@ function SwatchLegend() {
           </span>
         </div>
       ))}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-        <span style={{ display: 'inline-block', width: 16, height: 2, backgroundColor: '#E37400', flexShrink: 0, borderRadius: 1 }} />
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)' }}>
-          Website (right axis)
-        </span>
-      </div>
+      {hasWebsite && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ display: 'inline-block', width: 16, height: 2, backgroundColor: '#E37400', flexShrink: 0, borderRadius: 1 }} />
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)' }}>
+            Website (right axis)
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -68,6 +73,22 @@ export function FormatPerformanceChart({ period }: { period?: string }) {
 
   const rawLang = lang === 'both' ? undefined : lang
   const data    = getFormatPerformanceData(rawLang, metric, period)
+
+  // Only show legend entries that have at least one non-zero bar in this period/language.
+  const activePlatforms = useMemo(() => {
+    const active = new Set<string>()
+    for (const row of data) {
+      for (const p of BAR_PLATFORMS) {
+        if ((row as unknown as Record<string, number>)[p]) active.add(p)
+      }
+    }
+    return BAR_PLATFORMS.filter(p => active.has(p))
+  }, [data])
+
+  const hasWebsite = useMemo(
+    () => data.some(row => (row as unknown as Record<string, number>).website),
+    [data],
+  )
 
   return (
     <div>
@@ -87,7 +108,7 @@ export function FormatPerformanceChart({ period }: { period?: string }) {
         </div>
       </div>
 
-      <SwatchLegend />
+      <SwatchLegend activePlatforms={activePlatforms} hasWebsite={hasWebsite} />
 
       {data.length === 0 ? (
         <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body)', color: 'var(--color-muted)' }}>

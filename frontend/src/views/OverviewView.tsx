@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Eye, ChartBar, Link, Users, Clock } from '@phosphor-icons/react'
 import {
   getCurrentPeriodTotals, getPreviousPeriodTotals,
-  getStories, getTopicSummaries, getContentByStory, getAllContributors,
+  getTopicSummaries, getSeriesSummaries, getStoriesForPeriod,
+  getContentByStory, getAllContributors, hasSufficientFollowerHistory,
 } from '../data/adapter'
 import type { Story, Contributor } from '../data/types'
 import { KpiTile }                from '../components/KpiTile'
@@ -13,6 +14,7 @@ import { FormatPerformanceChart } from '../components/charts/FormatPerformanceCh
 import { VelocityChart }         from '../components/charts/VelocityChart'
 import { METRIC_INFO, formatDateSpan } from '../lib/labels'
 import { formatCompact, formatMinutes } from '../lib/metrics'
+import { TEAL_RAMP } from '../lib/chartData'
 
 interface OverviewViewProps {
   period?:           string
@@ -23,7 +25,7 @@ interface OverviewViewProps {
 // NOTE: these are computed inside the component (useMemo) so they run after
 // initAdapter() populates the cache — not at module load time on sample data.
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <h2 style={{
       fontFamily:   'var(--font-display)',
@@ -31,73 +33,97 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
       fontWeight:   500,
       color:        'var(--color-ink)',
       margin:       '0 0 16px 0',
+      ...style,
     }}>
       {children}
     </h2>
   )
 }
 
-// ─── Top topics ───────────────────────────────────────────────────────────────
+// ─── Top topics / series ──────────────────────────────────────────────────────
+
+const LIST_TOGGLE = [
+  { value: 'topics' as const,  label: 'Topics'  },
+  { value: 'series' as const,  label: 'Series'  },
+]
 
 function TopTopicsCard({ period }: { period?: string }) {
-  const topics = getTopicSummaries(5, period)
-  const maxWE  = Math.max(...topics.map(t => t.weightedEngagement), 1)
+  const [view, setView] = useState<'topics' | 'series'>('topics')
+
+  const topicRows = getTopicSummaries(5, period)
+  const seriesRows = getSeriesSummaries(5, period)
+
+  const rows: Array<{ label: string; we: number }> = view === 'topics'
+    ? topicRows.map(t => ({ label: t.topic, we: t.weightedEngagement }))
+    : seriesRows.map(s => ({ label: s.series, we: s.weightedEngagement }))
+
+  const maxWE = Math.max(...rows.map(r => r.we), 1)
 
   return (
-    <Card>
-      <SectionTitle>Top topics this period</SectionTitle>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {topics.map((t, i) => (
-          <div
-            key={t.topic}
-            style={{
-              display:             'grid',
-              gridTemplateColumns: '20px 1fr 56px 60px',
-              alignItems:          'center',
-              gap:                 10,
-              padding:             '10px 0',
-              borderBottom:        i < topics.length - 1 ? '1px solid var(--color-border)' : 'none',
-            }}
-          >
-            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-label)', fontWeight: 500, color: 'var(--color-fainter)', textAlign: 'center' }}>
-              {i + 1}
-            </span>
+    <Card style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <SectionTitle style={{ margin: 0 }}>Top {view} this period</SectionTitle>
+        <Toggle options={LIST_TOGGLE} value={view} onChange={setView} />
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body)', color: 'var(--color-muted)', padding: '20px 0' }}>
+          No {view} data for this period.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0, flex: 1 }}>
+          {rows.map((row, i) => (
             <div
-              dir="auto"
+              key={row.label}
               style={{
-                fontFamily:   'var(--font-ui)',
-                fontSize:     'var(--text-body)',
-                color:        'var(--color-ink)',
-                overflow:     'hidden',
-                whiteSpace:   'nowrap',
-                textOverflow: 'ellipsis',
+                display:             'grid',
+                gridTemplateColumns: '20px 1fr 56px 60px',
+                alignItems:          'center',
+                gap:                 10,
+                padding:             '10px 0',
+                borderBottom:        i < rows.length - 1 ? '1px solid var(--color-border)' : 'none',
               }}
             >
-              {t.topic}
+              <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-label)', fontWeight: 500, color: 'var(--color-fainter)', textAlign: 'center' }}>
+                {i + 1}
+              </span>
+              <div
+                dir="auto"
+                style={{
+                  fontFamily:   'var(--font-ui)',
+                  fontSize:     'var(--text-body)',
+                  color:        'var(--color-ink)',
+                  overflow:     'hidden',
+                  whiteSpace:   'nowrap',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {row.label}
+              </div>
+              {/* Teal rank bar — deliberate override of neutral-ink rule for ranked lists */}
+              <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: 'var(--color-border)' }}>
+                <div style={{
+                  width:           `${(row.we / maxWE) * 100}%`,
+                  height:          '100%',
+                  backgroundColor: TEAL_RAMP[Math.min(i + 1, TEAL_RAMP.length - 1)],
+                  borderRadius:    3,
+                }} />
+              </div>
+              <span style={{
+                fontFamily:         'var(--font-ui)',
+                fontSize:           'var(--text-data)',
+                fontWeight:         500,
+                color:              'var(--color-ink)',
+                fontVariantNumeric: 'tabular-nums lining-nums',
+                textAlign:          'right',
+              }}>
+                {formatCompact(row.we)}
+              </span>
             </div>
-            {/* Neutral ink bar — topics aren't platforms (§10.6) */}
-            <div style={{ height: 6, borderRadius: 3, overflow: 'hidden', backgroundColor: 'var(--color-border)' }}>
-              <div style={{
-                width:           `${(t.weightedEngagement / maxWE) * 100}%`,
-                height:          '100%',
-                backgroundColor: 'var(--color-ink)',
-                borderRadius:    3,
-                opacity:         0.6,
-              }} />
-            </div>
-            <span style={{
-              fontFamily:         'var(--font-ui)',
-              fontSize:           'var(--text-data)',
-              fontWeight:         500,
-              color:              'var(--color-ink)',
-              fontVariantNumeric: 'tabular-nums lining-nums',
-              textAlign:          'right',
-            }}>
-              {formatCompact(t.weightedEngagement)}
-            </span>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
         Ranked by Weighted Engagement · publish cohort
       </div>
@@ -108,10 +134,11 @@ function TopTopicsCard({ period }: { period?: string }) {
 // ─── Individual performer row (proper component — hooks allowed here) ─────────
 
 function PerformerRow({
-  story, rank, onSelect,
+  story, rank, rankBy, onSelect,
 }: {
   story: Story
   rank: number
+  rankBy: 'we' | 'eqr'
   onSelect?: () => void
 }) {
   const [hovered, setHovered] = useState(false)
@@ -236,7 +263,7 @@ function PerformerRow({
         </div>
       </div>
 
-      {/* WE metric */}
+      {/* Metrics: Impressions (primary) + WE or EQR (secondary) */}
       <div style={{ flexShrink: 0, textAlign: 'right' }}>
         <div style={{
           fontFamily:         'var(--font-display)',
@@ -247,13 +274,22 @@ function PerformerRow({
           lineHeight:         1,
           marginBottom:       3,
         }}>
-          {formatCompact(story.rollup.weightedEngagement)}
+          {formatCompact(story.rollup.impressions)}
         </div>
-        <Tooltip tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />}>
+        <Tooltip tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />}>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', cursor: 'help', borderBottom: '1px dotted var(--color-border-strong)' }}>
-            Engagement
+            Impressions
           </span>
         </Tooltip>
+        {rankBy === 'eqr' ? (
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+            EQR {story.rollup.eqr != null ? story.rollup.eqr.toFixed(1) : '—'}
+          </div>
+        ) : (
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+            WE {formatCompact(story.rollup.weightedEngagement)}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -261,20 +297,48 @@ function PerformerRow({
 
 // ─── Top performers ───────────────────────────────────────────────────────────
 
-function TopPerformersCard({ onSelectStory }: { onSelectStory?: (id: string) => void }) {
-  const stories = getStories().slice(0, 5)
+const RANK_OPTIONS = [
+  { value: 'we'  as const, label: 'WE'  },
+  { value: 'eqr' as const, label: 'EQR' },
+]
+
+function TopPerformersCard({ period, onSelectStory }: { period?: string; onSelectStory?: (id: string) => void }) {
+  const [rankBy, setRankBy] = useState<'we' | 'eqr'>('we')
+
+  const stories = useMemo(() => {
+    const base = period ? getStoriesForPeriod(period) : []
+    const sorted = [...base].sort((a, b) =>
+      rankBy === 'eqr'
+        ? (b.rollup.eqr ?? 0) - (a.rollup.eqr ?? 0)
+        : b.rollup.weightedEngagement - a.rollup.weightedEngagement,
+    )
+    return sorted.slice(0, 5)
+  }, [period, rankBy])
 
   return (
-    <Card>
-      <SectionTitle>Top performers</SectionTitle>
-      {stories.map((story, i) => (
-        <PerformerRow
-          key={story.id}
-          story={story}
-          rank={i + 1}
-          onSelect={onSelectStory ? () => onSelectStory(story.id) : undefined}
-        />
-      ))}
+    <Card style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <SectionTitle style={{ margin: 0 }}>Top performers this period</SectionTitle>
+        <Toggle options={RANK_OPTIONS} value={rankBy} onChange={setRankBy} />
+      </div>
+      {stories.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body)', color: 'var(--color-muted)', padding: '20px 0' }}>
+          No stories found for this period.
+        </div>
+      ) : (
+        stories.map((story, i) => (
+          <PerformerRow
+            key={story.id}
+            story={story}
+            rank={i + 1}
+            rankBy={rankBy}
+            onSelect={onSelectStory ? () => onSelectStory(story.id) : undefined}
+          />
+        ))
+      )}
+      <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
+        Ranked by {rankBy === 'eqr' ? 'Engagement Quality Rate' : 'Weighted Engagement'} · publish cohort
+      </div>
     </Card>
   )
 }
@@ -285,17 +349,19 @@ export function OverviewView({ period, onSelectStory }: OverviewViewProps) {
   // Recomputed whenever period changes (or on first render after cache warms).
   const current  = useMemo(() => getCurrentPeriodTotals(period),  [period])
   const previous = useMemo(() => getPreviousPeriodTotals(period), [period])
+  // Followers delta is only meaningful with >= 2 snapshots per platform.
+  const followerDeltaValid = useMemo(() => hasSufficientFollowerHistory(), [])
 
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 28px 56px' }}>
 
       {/* KPI tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 40 }}>
-        <KpiTile label="Impressions"        icon={<Eye weight="fill" size={14} />} value={formatCompact(current.impressions)}          current={current.impressions}          previous={previous.impressions}          polarity="good-up" />
-        <KpiTile label="Weighted Engagement" icon={<ChartBar weight="fill" size={14} />} value={formatCompact(current.weightedEngagement)} current={current.weightedEngagement}   previous={previous.weightedEngagement}   polarity="good-up" />
-        <KpiTile label="Site Clicks"         icon={<Link weight="fill" size={14} />} value={formatCompact(current.siteClicks)}          current={current.siteClicks}           previous={previous.siteClicks}           polarity="good-up" />
-        <KpiTile label="Total Followers"     icon={<Users weight="fill" size={14} />} value={formatCompact(current.followerTotal)}       current={current.followerTotal}        previous={previous.followerTotal}        polarity="good-up" />
-        <KpiTile label="Attention"           icon={<Clock weight="fill" size={14} />} value={formatMinutes(current.attentionTotalMinutes)} current={current.attentionTotalMinutes} previous={previous.attentionTotalMinutes} polarity="good-up" />
+        <KpiTile label="Impressions"         icon={<Eye weight="fill" size={14} />} value={formatCompact(current.impressions)}            current={current.impressions}          previous={previous.impressions}                              polarity="good-up" />
+        <KpiTile label="Weighted Engagement" icon={<ChartBar weight="fill" size={14} />} value={formatCompact(current.weightedEngagement)} current={current.weightedEngagement}   previous={previous.weightedEngagement}                       polarity="good-up" />
+        <KpiTile label="Clicks to Site"      icon={<Link weight="fill" size={14} />} value={formatCompact(current.siteClicks)}             current={current.siteClicks}           previous={previous.siteClicks}                               polarity="good-up" />
+        <KpiTile label="Total Followers"     icon={<Users weight="fill" size={14} />} value={formatCompact(current.followerTotal)}         current={current.followerTotal}        previous={followerDeltaValid ? previous.followerTotal : null} polarity="good-up" />
+        <KpiTile label="Attention"           icon={<Clock weight="fill" size={14} />} value={formatMinutes(current.attentionTotalMinutes)} current={current.attentionTotalMinutes} previous={previous.attentionTotalMinutes}                   polarity="good-up" />
       </div>
 
       {/* Format performance hero — chart-grow-in for §12 motion */}
@@ -327,10 +393,10 @@ export function OverviewView({ period, onSelectStory }: OverviewViewProps) {
         <VelocityChart period={period} />
       </div>
 
-      {/* Two-column lower section */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 24 }}>
+      {/* Two-column lower section — alignItems: stretch so both cards fill the row height */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2fr 3fr', gap: 24, alignItems: 'stretch' }}>
         <TopTopicsCard period={period} />
-        <TopPerformersCard onSelectStory={onSelectStory} />
+        <TopPerformersCard period={period} onSelectStory={onSelectStory} />
       </div>
     </div>
   )
