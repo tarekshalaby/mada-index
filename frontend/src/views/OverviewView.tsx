@@ -284,11 +284,11 @@ function PerformerRow({
         </Tooltip>
         {rankBy === 'eqr' ? (
           <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
-            EQR {story.rollup.eqr != null ? story.rollup.eqr.toFixed(1) : '—'}
+            Quality {story.rollup.eqr != null ? story.rollup.eqr.toFixed(1) : '—'}
           </div>
         ) : (
           <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
-            WE {formatCompact(story.rollup.weightedEngagement)}
+            Engagement {formatCompact(story.rollup.weightedEngagement)}
           </div>
         )}
       </div>
@@ -299,8 +299,8 @@ function PerformerRow({
 // ─── Top performers ───────────────────────────────────────────────────────────
 
 const RANK_OPTIONS = [
-  { value: 'we'  as const, label: 'WE'  },
-  { value: 'eqr' as const, label: 'EQR' },
+  { value: 'we'  as const, label: 'Engagement' },
+  { value: 'eqr' as const, label: 'Quality'    },
 ]
 
 function TopPerformersCard({ period, onSelectStory }: { period?: string; onSelectStory?: (id: string) => void }) {
@@ -338,7 +338,7 @@ function TopPerformersCard({ period, onSelectStory }: { period?: string; onSelec
         ))
       )}
       <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
-        Ranked by {rankBy === 'eqr' ? 'Engagement Quality Rate' : 'Weighted Engagement'} · publish cohort
+        Ranked by {rankBy === 'eqr' ? 'engagement quality (WE ÷ impressions)' : 'weighted engagement'} · publish cohort
       </div>
     </Card>
   )
