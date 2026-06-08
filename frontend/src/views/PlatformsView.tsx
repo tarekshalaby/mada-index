@@ -602,9 +602,9 @@ function ChannelsTab({ period = 'may-26' }: { period?: string }) {
 
       {/* Charts row — alignItems:start so each card is its own natural height */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28, alignItems: 'start' }}>
-        {/* Publishing cadence heatmap */}
+        {/* Publishing cadence heatmap — filtered to this platform only */}
         <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '16px 20px', backgroundColor: 'var(--color-raised)' }}>
-          <CadenceHeatmap period={period} />
+          <CadenceHeatmap period={period} platform={selected ?? undefined} />
         </div>
 
         {/* Per-post impressions trend */}

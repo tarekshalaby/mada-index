@@ -10,6 +10,8 @@
 
 import { useState, useMemo } from 'react'
 import { DownloadSimple, Printer, Eye, ChartBar, Clock, Users, ArrowRight } from '@phosphor-icons/react'
+import { buildPrintHTML } from '../lib/printReport'
+import type { PrintData } from '../lib/printReport'
 import {
   getPeriodContent, getStoriesForPeriod, getContentByStory,
   getLatestFollowersByPlatform,
@@ -265,7 +267,30 @@ export function ReportsView({ period = 'may-26', onSelectStory }: ReportsViewPro
             variant="icon"
             icon={<Printer weight="fill" size={16} />}
             aria-label="Print-friendly view"
-            onClick={() => window.print()}
+            onClick={() => {
+              const dateStr = new Date().toLocaleDateString('en-GB', {
+                day: 'numeric', month: 'long', year: 'numeric',
+              })
+              const printData: PrintData = {
+                periodLabel,
+                impressions,
+                weightedEng,
+                attentionMinutes,
+                byPlatform,
+                topStories,
+                platformRows,
+                contentMix,
+                totalFollowers,
+                followersByPlatform,
+                filterTopic,
+                topicAggregate,
+              }
+              const html = buildPrintHTML(printData, dateStr)
+              const win  = window.open('', '_blank')
+              if (!win) return
+              win.document.write(html)
+              win.document.close()
+            }}
           />
         </div>
       </div>

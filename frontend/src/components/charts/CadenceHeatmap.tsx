@@ -24,9 +24,9 @@ function tealForValue(value: number, max: number): string {
   return TEAL_RAMP[Math.max(idx, 0)]
 }
 
-export function CadenceHeatmap({ period }: { period?: string }) {
+export function CadenceHeatmap({ period, platform }: { period?: string; platform?: string }) {
   const [mode, setMode] = useState<Mode>('publishing')
-  const { cells, weeks, maxValue } = getCadenceData(mode, period)
+  const { cells, weeks, maxValue } = getCadenceData(mode, period, platform)
 
   if (weeks.length === 0) return null
 

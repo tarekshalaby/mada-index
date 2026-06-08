@@ -220,12 +220,28 @@ export interface CadenceCell {
 
 export const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
-export function getCadenceData(mode: 'publishing' | 'engagement', period?: string): {
+export function getCadenceData(mode: 'publishing' | 'engagement', period?: string, platform?: string): {
   cells:    CadenceCell[]
   weeks:    { label: string; start: Date }[]
   maxValue: number
 } {
-  const content = period ? getPeriodContent(period) : getContent()
+  let content = period ? getPeriodContent(period) : getContent()
+
+  // Per-channel view: filter to just that platform's records.
+  // Global view (no platform): deduplicate multi-platform stories so a story
+  // published on 5 platforms counts as 1 editorial decision, not 5.
+  if (platform) {
+    content = content.filter(c => c.platform === platform)
+  } else {
+    const seenStoryDay = new Set<string>()
+    content = content.filter(c => {
+      if (!c.storyId) return true          // standalone post — always count
+      const key = `${c.storyId}:${c.publishedAt.slice(0, 10)}`
+      if (seenStoryDay.has(key)) return false
+      seenStoryDay.add(key)
+      return true
+    })
+  }
 
   // Map: weekStartISO → dayIndex → value
   const grid: Record<string, Record<number, number>> = {}
