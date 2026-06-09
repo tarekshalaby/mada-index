@@ -16,9 +16,9 @@ type SortCol = 'published' | 'impressions' | 'engagement' | 'siteClicks'
 type SortDir = 'desc' | 'asc'
 
 // Columns: thumbnail · content · date · [impressions + engagement combined] · site clicks
-// Impressions and Engagement share a single flex cell (76px + 8px gap + 80px = 164px)
+// Impressions and Engagement share a single flex cell (100px + 8px gap + 80px = 188px)
 // so there is no CSS grid gap between the two metric numbers.
-const GRID = '80px 1fr 72px 164px 72px'
+const GRID = '80px 1fr 72px 188px 72px'
 
 // Minimum peers of the same Type for a percentile bar to be meaningful
 const MIN_PEERS = 4
@@ -151,7 +151,7 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
 
       {/* Impressions + Engagement — one flex cell, no grid gap between them */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ width: 76, flexShrink: 0, textAlign: 'right' }}>
+        <div style={{ width: 100, flexShrink: 0, textAlign: 'right' }}>
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.exposurePercentile) }}>
             {formatCompact(m.impressions)}
           </span>
@@ -348,7 +348,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
           <ColHeader col="published"   label="Date"               align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
           {/* Combined Impressions + Engagement header — mirrors the data row flex structure */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 76, flexShrink: 0 }}>
+            <div style={{ width: 100, flexShrink: 0 }}>
               <ColHeader col="impressions" label="Impressions" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
             </div>
             <div style={{ width: 80, flexShrink: 0 }}>
