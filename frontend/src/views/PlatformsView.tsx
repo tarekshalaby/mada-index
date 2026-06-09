@@ -16,13 +16,16 @@ import { Toggle }        from '../components/Toggle'
 import { Chip }          from '../components/Chip'
 import { HonestyLabel }  from '../components/HonestyLabel'
 import { EmptyState }    from '../components/EmptyState'
-import { FollowerGrowthChart } from '../components/charts/FollowerGrowthChart'
-import { CadenceHeatmap }     from '../components/charts/CadenceHeatmap'
+import { FollowerGrowthChart }  from '../components/charts/FollowerGrowthChart'
+import { CadenceHeatmap }      from '../components/charts/CadenceHeatmap'
+import { EngagementMixChart }  from '../components/charts/EngagementMixChart'
 import { Tag }           from '../components/Tag'
 import { PlatformBadge, PLATFORM_CONFIG, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
 import { Tooltip, MetricTip } from '../components/Tooltip'
 import { METRIC_INFO, CONTENT_TYPE_LABELS, formatDateShort } from '../lib/labels'
 import { formatCompact } from '../lib/metrics'
+import { getEngagementMix } from '../lib/chartData'
+import type { EngagementMixRow } from '../lib/chartData'
 
 type SubTab     = 'performance' | 'audience' | 'publishing'
 type CompMetric = 'impressions' | 'engagement' | 'eqr' | 'siteClicks'
@@ -195,7 +198,8 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
       .sort((a, b) => b.value - a.value)
   }, [aggregates, prevAgg, metric])
 
-  const maxValue = Math.max(...sortedByMetric.map(r => r.value), 1)
+  const maxValue  = Math.max(...sortedByMetric.map(r => r.value), 1)
+  const mixData: EngagementMixRow[] = useMemo(() => getEngagementMix(period), [period])
   const metricTip = metric === 'impressions' ? METRIC_INFO.impressions
     : metric === 'engagement' ? METRIC_INFO.weighted_engagement
     : metric === 'eqr'        ? METRIC_INFO.eqr
@@ -251,6 +255,17 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
       <p style={{ marginTop: 8, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)', margin: '8px 0 0' }}>
         Click any row to see native metrics and content
       </p>
+
+      {/* Engagement-type mix — Task 3 */}
+      <div className="chart-grow-in" style={{
+        backgroundColor: 'var(--color-raised)',
+        border:    '1px solid var(--color-border)',
+        borderRadius: 'var(--radius-card)',
+        padding:   '20px 24px',
+        marginTop: 28,
+      }}>
+        <EngagementMixChart data={mixData} />
+      </div>
     </div>
   )
 }

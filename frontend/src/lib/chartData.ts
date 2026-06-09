@@ -296,3 +296,69 @@ export function getCadenceData(mode: 'publishing' | 'engagement', period?: strin
 
   return { cells, weeks, maxValue }
 }
+
+// ─── 5. Engagement-type mix ────────────────────────────────────────────────────
+// Per platform: composition of interaction types (reactions / comments / shares / saves / clicks).
+// Normalized to 100% so we compare mix, not volume.
+// Sorted by impressions descending — matches the channel comparison order above the chart.
+
+export interface EngagementMixRow {
+  platform:     Platform
+  label:        string   // human-readable platform name for the Y-axis
+  reactions:    number
+  comments:     number
+  shares:       number
+  saves:        number
+  clicks:       number
+  total:        number   // sum of the five interaction counts
+  reactionsPct: number   // 0–100, normalised share for the stacked bar
+  commentsPct:  number
+  sharesPct:    number
+  savesPct:     number
+  clicksPct:    number
+}
+
+export function getEngagementMix(period?: string): EngagementMixRow[] {
+  const content = period ? getPeriodContent(period) : getContent()
+
+  const map = new Map<Platform, {
+    reactions: number; comments: number; shares: number
+    saves: number; clicks: number; impressions: number
+  }>()
+
+  for (const c of content) {
+    const e = map.get(c.platform) ?? { reactions: 0, comments: 0, shares: 0, saves: 0, clicks: 0, impressions: 0 }
+    map.set(c.platform, {
+      reactions:   e.reactions   + c.metrics.reactions,
+      comments:    e.comments    + c.metrics.comments,
+      shares:      e.shares      + c.metrics.shares,
+      saves:       e.saves       + c.metrics.saves,
+      clicks:      e.clicks      + c.metrics.clicks,
+      impressions: e.impressions + c.metrics.impressions,
+    })
+  }
+
+  // Sort by impressions descending — keeps this chart in the same order as the comparison
+  return [...map.entries()]
+    .sort((a, b) => b[1].impressions - a[1].impressions)
+    .map(([platform, counts]) => {
+      const total = counts.reactions + counts.comments + counts.shares + counts.saves + counts.clicks
+      const safe  = total > 0 ? total : 1
+      return {
+        platform,
+        label:        PLATFORM_DISPLAY[platform] ?? platform,
+        reactions:    counts.reactions,
+        comments:     counts.comments,
+        shares:       counts.shares,
+        saves:        counts.saves,
+        clicks:       counts.clicks,
+        total,
+        reactionsPct: (counts.reactions / safe) * 100,
+        commentsPct:  (counts.comments  / safe) * 100,
+        sharesPct:    (counts.shares    / safe) * 100,
+        savesPct:     (counts.saves     / safe) * 100,
+        clicksPct:    (counts.clicks    / safe) * 100,
+      }
+    })
+    .filter(r => r.total > 0)  // skip platforms with no recorded interaction breakdown
+}
