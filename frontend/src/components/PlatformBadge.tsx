@@ -22,7 +22,7 @@ export const PLATFORM_CONFIG: Record<Platform, {
   x:          { label: 'X',          color: '#15181C', Icon: XLogo          },
   youtube:    { label: 'YouTube',    color: '#C0392B', Icon: YoutubeLogo    },
   linkedin:   { label: 'LinkedIn',   color: '#08538D', Icon: LinkedinLogo   },
-  newsletter: { label: 'Newsletter', color: '#E0A526', Icon: EnvelopeSimple },
+  newsletter: { label: 'MailChimp',  color: '#E0A526', Icon: EnvelopeSimple },
   podcast:    { label: 'Podcast',    color: '#1DB954', Icon: Microphone     },
 }
 

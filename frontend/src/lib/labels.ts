@@ -7,7 +7,7 @@ export const FORMAT_LABELS: Record<Format, string> = {
   'op-ed':                 'Opinion',     // Article Type lookup value is "Opinion"
   'panorama':              'Panorama',
   'cartoon':               'Cartoon',
-  'newsletter':            'Newsletter',
+  'newsletter':            'MailChimp',
   'podcast':               'Podcast',
   'video':                 'Video',
   'breaking-news':         'Breaking News',
@@ -32,7 +32,7 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   'x-post':           'X Post',
   'linkedin-post':    'LinkedIn Post',
   'youtube-video':    'YouTube Video',
-  'newsletter':       'Newsletter',
+  'newsletter':       'MailChimp',
   'podcast-episode':  'Podcast Episode',
 }
 

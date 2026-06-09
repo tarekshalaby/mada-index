@@ -102,7 +102,7 @@ const FORMAT_TEAL: Record<string, string> = {
   'Feature / Investigation': '#5FB498',
   'News Feature':            '#8FCBB5',
   'News':                    '#BFE0D2',
-  'Newsletter':              '#2F7D63',
+  'MailChimp':               '#2F7D63',
   'Podcast':                 '#1C4A3B',
   'Video':                   '#1C4A3B',
   'Other':                   '#E4F2EC',
@@ -124,7 +124,7 @@ const PLATFORM_DISPLAY: Record<string, string> = {
   'x':          'X',
   'linkedin':   'LinkedIn',
   'youtube':    'YouTube',
-  'newsletter': 'Newsletter',
+  'newsletter': 'MailChimp',
   'podcast':    'Podcast',
 }
 
@@ -137,7 +137,7 @@ const PLATFORM_VELOCITY_COLORS: Record<string, string> = {
   'X':          '#15181C',
   'LinkedIn':   '#08538D',
   'YouTube':    '#C0392B',
-  'Newsletter': '#E0A526',
+  'MailChimp':  '#E0A526',
   'Podcast':    '#1DB954',
 }
 
