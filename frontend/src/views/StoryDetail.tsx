@@ -3,7 +3,7 @@ import { ArrowLeft, Eye, ChartBar, Link, Clock, ShareNetwork, CalendarBlank } fr
 import { getAllContributors, getContent } from '../data/adapter'
 import type { Story, Content, ContentType, Platform, Contributor } from '../data/types'
 import { PercentileBadge } from '../components/PercentileBadge'
-import { computePercentileRank, formatCompact, formatMinutes } from '../lib/metrics'
+import { computePercentileRank, getPercentileBand, formatCompact, formatMinutes } from '../lib/metrics'
 import { HonestyLabel } from '../components/HonestyLabel'
 import { PlatformBadge, PLATFORM_CONFIG, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
 import { Tag } from '../components/Tag'
@@ -496,19 +496,25 @@ export function StoryDetail({ story, members, peerStories, onBack, onSelectConte
                       </Tooltip>
                     ) : labelInner}
                   </div>
-                  <div style={{
-                    fontFamily:         'var(--font-display)',
-                    fontSize:           'var(--text-display-l)',
-                    fontWeight:         600,
-                    color:              'var(--color-ink)',
-                    fontVariantNumeric: 'tabular-nums lining-nums',
-                    lineHeight:         1,
-                    letterSpacing:      '-0.01em',
-                    marginBottom:       pctl !== undefined ? 6 : 0,
-                  }}>
-                    {value}
+                  <div style={{ display: 'inline-block' }}>
+                    <div style={{
+                      fontFamily:         'var(--font-display)',
+                      fontSize:           'var(--text-display-l)',
+                      fontWeight:         600,
+                      color:              'var(--color-ink)',
+                      fontVariantNumeric: 'tabular-nums lining-nums',
+                      lineHeight:         1,
+                      letterSpacing:      '-0.01em',
+                      paddingBottom:      pctl !== undefined ? 5 : 0,
+                      // Coloured underline — top quartile green, middle grey, bottom red
+                      borderBottom: pctl !== undefined ? (() => {
+                        const band = getPercentileBand(pctl)
+                        return `3px solid ${band === 'top' ? 'var(--color-good-solid)' : band === 'bottom' ? 'var(--color-bad-text)' : 'var(--color-neutral-text)'}`
+                      })() : 'none',
+                    }}>
+                      {value}
+                    </div>
                   </div>
-                  {pctl !== undefined && <PercentileBadge percentile={pctl} />}
                 </div>
               )
             })}
