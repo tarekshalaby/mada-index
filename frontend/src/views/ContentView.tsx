@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { MagnifyingGlass, CaretUp, CaretDown, Funnel } from '@phosphor-icons/react'
+import { Toggle } from '../components/Toggle'
 import { getPeriodContent, getAllContributors } from '../data/adapter'
 import type { Content, ContentType, Platform, Contributor } from '../data/types'
 import { Tag }              from '../components/Tag'
@@ -153,17 +154,17 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
         </span>
       </div>
 
-      {/* Weighted Engagement — underline colour encodes quality (EQR) percentile; full detail on hover */}
-      <Tooltip
-        tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged relative to reach.`} />}
-        placement="below"
-      >
-        <div style={{ textAlign: 'right' }}>
+      {/* Weighted Engagement — outer div fills the grid column; Tooltip wraps just the number */}
+      <div style={{ textAlign: 'right' }}>
+        <Tooltip
+          tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged per impression.`} />}
+          placement="below"
+        >
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.qualityPercentile) }}>
             {formatCompact(m.weightedEngagement)}
           </span>
-        </div>
-      </Tooltip>
+        </Tooltip>
+      </div>
 
       {/* Site Clicks */}
       <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: m.siteClicks > 0 ? 'var(--color-ink)' : 'var(--color-fainter)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>
@@ -189,7 +190,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
   const [search,          setSearch         ] = useState('')
   const [filterTopic,     setFilterTopic    ] = useState<string | undefined>()
   const [filterAuthor,    setFilterAuthor   ] = useState<string | undefined>()
-  const [filterLanguage,  setFilterLanguage ] = useState<string | undefined>()
+  const [filterLanguage,  setFilterLanguage ] = useState<'both' | 'ar' | 'en'>('both')
   const [selectedContent, setSelectedContent] = useState<EnrichedContent | null>(null)
   const [page,            setPage           ] = useState(1)
 
@@ -221,7 +222,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
     }
     if (filterTopic)    items = items.filter(c => c.topics?.includes(filterTopic))
     if (filterAuthor)   items = items.filter(c => c.authorIds?.includes(filterAuthor))
-    if (filterLanguage) items = items.filter(c => c.language === filterLanguage)
+    if (filterLanguage !== 'both') items = items.filter(c => c.language === filterLanguage)
     return [...items].sort((a, b) => {
       if (sortCol === 'published') {
         return sortDir === 'desc' ? b.publishedAt.localeCompare(a.publishedAt) : a.publishedAt.localeCompare(b.publishedAt)
@@ -235,7 +236,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
   }, [allContent, activePlatforms, search, sortCol, sortDir, filterTopic, filterAuthor, filterLanguage])
 
   const allSelected       = activePlatforms.size === JOURNEY_PLATFORM_ORDER.length
-  const hasSecondaryFilter = !!(filterTopic || filterAuthor || filterLanguage)
+  const hasSecondaryFilter = !!(filterTopic || filterAuthor || filterLanguage !== 'both')
   const totalPages        = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated         = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -301,20 +302,17 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         </div>
       </div>
 
-      {/* Secondary filters — language pills · topic · author */}
+      {/* Secondary filters — language toggle · topic · author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasSecondaryFilter ? 12 : 16, flexWrap: 'wrap' }}>
-        {(['ar', 'en'] as const).map(lang => {
-          const isActive = filterLanguage === lang
-          return (
-            <button
-              key={lang}
-              onClick={() => { setFilterLanguage(isActive ? undefined : lang); setPage(1) }}
-              style={{ display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 12px', border: `1px solid ${isActive ? 'var(--color-border-strong)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-pill)', backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-raised)', cursor: 'pointer', transition: 'all 140ms ease', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-label)', fontWeight: isActive ? 500 : 400, color: isActive ? 'var(--color-paper)' : 'var(--color-fainter)' }}
-            >
-              {lang === 'ar' ? 'Arabic' : 'English'}
-            </button>
-          )
-        })}
+        <Toggle
+          options={[
+            { value: 'both', label: 'Both' },
+            { value: 'ar',   label: 'Arabic' },
+            { value: 'en',   label: 'English' },
+          ]}
+          value={filterLanguage}
+          onChange={v => { setFilterLanguage(v); setPage(1) }}
+        />
         <FilterDropdown
           label="Topic"
           options={topicOptions}
@@ -331,7 +329,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         )}
         {hasSecondaryFilter && (
           <button
-            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined); setFilterLanguage(undefined) }}
+            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined); setFilterLanguage('both') }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', padding: 0, textDecoration: 'underline' }}
           >
             Clear
@@ -362,7 +360,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
           {filtered.length} items
           {search && ` matching "${search}"`}
-          {filterLanguage && ` · ${filterLanguage === 'ar' ? 'Arabic' : 'English'}`}
+          {filterLanguage !== 'both' && ` · ${filterLanguage === 'ar' ? 'Arabic' : 'English'}`}
           {filterTopic && ` · topic: ${filterTopic}`}
           {filterAuthor && ` · author filter active`}
           {totalPages > 1 && ` · page ${page} of ${totalPages}`}
