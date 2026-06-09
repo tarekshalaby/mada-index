@@ -204,24 +204,40 @@ export interface FollowerRow {
 
 export function getFollowerGrowthData(): { data: FollowerRow[]; platforms: Platform[] } {
   const history = getFollowersHistory()
+  if (!history.length) return { data: [], platforms: [] }
 
+  // 1. All unique platforms that appear in history
+  const platforms = [...new Set(history.map(s => s.platform))] as Platform[]
+
+  // 2. Raw values per date (may be sparse — different platforms snapshot on different days)
   const byDate: Record<string, Partial<Record<Platform, number>>> = {}
   for (const snap of history) {
     if (!byDate[snap.snapshotDate]) byDate[snap.snapshotDate] = {}
     byDate[snap.snapshotDate][snap.platform] = snap.followerCount
   }
 
-  const sorted = Object.entries(byDate).sort(([a], [b]) => a.localeCompare(b))
+  // 3. Walk dates in chronological order; carry the last-known value forward
+  //    (follower counts are point-in-time totals, not per-period events — forward-fill is correct)
+  const allDates = Object.keys(byDate).sort()
+  const lastKnown: Partial<Record<Platform, number>> = {}
 
-  const platforms = [
-    ...new Set(history.map(s => s.platform)),
-  ] as Platform[]
-
-  const data: FollowerRow[] = sorted.map(([iso, vals]) => ({
-    date:    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    rawDate: iso,
-    ...vals,
-  }))
+  const data: FollowerRow[] = allDates.map(iso => {
+    const snap = byDate[iso]
+    // Update last-known for any platform with a fresh reading this date
+    for (const p of platforms) {
+      if (snap[p] !== undefined) lastKnown[p] = snap[p]
+    }
+    // Build row: forward-filled value for every platform seen at least once so far
+    const row: FollowerRow = {
+      date:    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      rawDate: iso,
+    }
+    for (const p of platforms) {
+      if (lastKnown[p] !== undefined) row[p] = lastKnown[p]!
+      // else: platform hasn't appeared yet — omit from this date (Recharts skips undefined)
+    }
+    return row
+  })
 
   return { data, platforms }
 }

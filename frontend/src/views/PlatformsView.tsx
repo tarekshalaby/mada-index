@@ -9,7 +9,7 @@ import {
   getPeriodContent, getLatestFollowersByPlatform,
   getPrevPlatformAggregates, getPrevFollowersByPlatform,
 } from '../data/adapter'
-import type { Content, Platform } from '../data/types'
+import type { Content, ContentMetrics, Platform } from '../data/types'
 import { ContentDetail } from './ContentDetail'
 import { Tabs }          from '../components/Tabs'
 import { Toggle }        from '../components/Toggle'
@@ -339,70 +339,90 @@ function PublishingTab({ period }: { period?: string }) {
 }
 
 // ─── Channel content row ──────────────────────────────────────────────────────
+// Helpers are defined at module level so PlatformDeepDive can use the labels
+// to build the column header without re-running per-row metric logic.
+
+type ChannelCol = { label: string; value: string }
+
+/** Returns the metric columns for a given platform + its metrics. */
+function getChannelColDefs(platform: Platform, m: ContentMetrics): ChannelCol[] {
+  switch (platform) {
+    case 'website':
+      return [
+        { label: 'Views',    value: formatCompact(m.impressions) },
+        { label: 'Avg read', value: `${m.attentionAvg.toFixed(1)} min` },
+        { label: 'EQR',      value: m.engagementQualityRate.toFixed(0) },
+      ]
+    case 'facebook':
+      return [
+        { label: 'Impressions', value: formatCompact(m.impressions) },
+        { label: 'Reactions',   value: formatCompact(m.reactions)   },
+        { label: 'Shares',      value: formatCompact(m.shares)      },
+        { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
+      ]
+    case 'instagram':
+      return [
+        { label: 'Impressions', value: formatCompact(m.impressions) },
+        { label: 'Likes',       value: formatCompact(m.reactions)   },
+        { label: 'Saves',       value: formatCompact(m.saves)       },
+        { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
+      ]
+    case 'x':
+      return [
+        { label: 'Impressions', value: formatCompact(m.impressions) },
+        { label: 'Likes',       value: formatCompact(m.reactions)   },
+        { label: 'RT + Quotes', value: formatCompact(m.shares)      },
+        { label: 'Bookmarks',   value: formatCompact(m.saves)       },
+      ]
+    case 'linkedin':
+      return [
+        { label: 'Impressions', value: formatCompact(m.impressions)       },
+        { label: 'Reactions',   value: formatCompact(m.reactions)         },
+        { label: 'Clicks',      value: formatCompact(m.clicks)            },
+        { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
+      ]
+    case 'youtube':
+      return [
+        { label: 'Views',     value: formatCompact(m.impressions)       },
+        { label: 'Avg watch', value: `${m.attentionAvg.toFixed(1)} min` },
+        { label: 'EQR',       value: m.engagementQualityRate.toFixed(0) },
+      ]
+    case 'newsletter':
+      return [
+        { label: 'Opens',      value: formatCompact(m.impressions) },
+        { label: 'Clicks',     value: formatCompact(m.clicks)      },
+        { label: 'Click rate', value: `${m.engagementQualityRate.toFixed(1)}%` },
+      ]
+    case 'podcast':
+      return [
+        { label: 'Streams',    value: formatCompact(m.impressions)       },
+        { label: 'Avg listen', value: `${m.attentionAvg.toFixed(0)} min` },
+      ]
+    default:
+      return [{ label: 'Impressions', value: formatCompact(m.impressions) }]
+  }
+}
+
+/** Column labels only — used to render the single header row above the list. */
+function getChannelColLabels(platform: Platform): string[] {
+  const dummy = { impressions: 0, reactions: 0, shares: 0, saves: 0, clicks: 0,
+    weightedEngagement: 0, engagementQualityRate: 0, interactions: 0,
+    attentionAvg: 0, penetrationRate: null, siteClicks: 0, videoViews: 0, watchReadMinutes: 0 } as ContentMetrics
+  return getChannelColDefs(platform, dummy).map(c => c.label)
+}
+
+/** CSS grid template: thumbnail · title · N metric columns at 84px each. */
+function getChannelColTemplate(platform: Platform): string {
+  const n = getChannelColLabels(platform).length
+  return `64px 1fr ${Array(n).fill('84px').join(' ')}`
+}
 
 function ChannelContentRow({ content, onSelect }: { content: Content; onSelect?: () => void }) {
   const [hovered, setHovered] = useState(false)
-  const m = content.metrics
   const isArabic = content.language === 'ar'
-  const { Icon } = PLATFORM_CONFIG[content.platform]
-
-  const nativeMetrics: { label: string; value: string }[] = (() => {
-    switch (content.platform) {
-      case 'website':
-        return [
-          { label: 'Views',    value: formatCompact(m.impressions) },
-          { label: 'Avg read', value: `${m.attentionAvg.toFixed(1)} min` },
-          { label: 'EQR',      value: m.engagementQualityRate.toFixed(0) },
-        ]
-      case 'facebook':
-        return [
-          { label: 'Impressions', value: formatCompact(m.impressions) },
-          { label: 'Reactions',   value: formatCompact(m.reactions)   },
-          { label: 'Shares',      value: formatCompact(m.shares)      },
-          { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
-        ]
-      case 'instagram':
-        return [
-          { label: 'Impressions', value: formatCompact(m.impressions) },
-          { label: 'Likes',       value: formatCompact(m.reactions)   },
-          { label: 'Saves',       value: formatCompact(m.saves)       },
-          { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
-        ]
-      case 'x':
-        return [
-          { label: 'Impressions', value: formatCompact(m.impressions) },
-          { label: 'Likes',       value: formatCompact(m.reactions)   },
-          { label: 'RT + Quotes', value: formatCompact(m.shares)      },
-          { label: 'Bookmarks',   value: formatCompact(m.saves)       },
-        ]
-      case 'linkedin':
-        return [
-          { label: 'Impressions', value: formatCompact(m.impressions)       },
-          { label: 'Reactions',   value: formatCompact(m.reactions)         },
-          { label: 'Clicks',      value: formatCompact(m.clicks)            },
-          { label: 'EQR',         value: m.engagementQualityRate.toFixed(1) },
-        ]
-      case 'youtube':
-        return [
-          { label: 'Views',     value: formatCompact(m.impressions)       },
-          { label: 'Avg watch', value: `${m.attentionAvg.toFixed(1)} min` },
-          { label: 'EQR',       value: m.engagementQualityRate.toFixed(0) },
-        ]
-      case 'newsletter':
-        return [
-          { label: 'Opens',      value: formatCompact(m.impressions) },
-          { label: 'Clicks',     value: formatCompact(m.clicks)      },
-          { label: 'Click rate', value: `${m.engagementQualityRate.toFixed(1)}%` },
-        ]
-      case 'podcast':
-        return [
-          { label: 'Streams',    value: formatCompact(m.impressions)       },
-          { label: 'Avg listen', value: `${m.attentionAvg.toFixed(0)} min` },
-        ]
-      default:
-        return [{ label: 'Impressions', value: formatCompact(m.impressions) }]
-    }
-  })()
+  const { Icon }  = PLATFORM_CONFIG[content.platform]
+  const colDefs   = getChannelColDefs(content.platform, content.metrics)
+  const colTpl    = getChannelColTemplate(content.platform)
 
   return (
     <div
@@ -410,21 +430,27 @@ function ChannelContentRow({ content, onSelect }: { content: Content; onSelect?:
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', alignItems: 'center', gap: 14, padding: '12px 0',
+        display: 'grid',
+        gridTemplateColumns: colTpl,
+        gap: '0 14px',
+        alignItems: 'center',
+        padding: '10px 0',
         borderBottom: '1px solid var(--color-border)',
         backgroundColor: hovered ? 'rgba(36,31,24,0.025)' : 'transparent',
         transition: 'background-color 120ms ease',
         cursor: onSelect ? 'pointer' : 'default',
       }}
     >
-      <div style={{ width: 64, height: 48, borderRadius: 8, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9' }}>
+      {/* Thumbnail */}
+      <div style={{ width: 64, height: 48, borderRadius: 8, overflow: 'hidden', border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9' }}>
         {content.thumbnailUrl
           ? <img src={content.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={20} color="var(--color-fainter)" /></div>
         }
       </div>
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      {/* Title + date/type */}
+      <div style={{ minWidth: 0 }}>
         <div dir="auto" style={{ fontFamily: 'var(--font-display)', fontSize: isArabic ? 15 : 'var(--text-title-row)', fontWeight: isArabic ? 600 : 500, lineHeight: isArabic ? 1.5 : 1.35, color: 'var(--color-ink)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 4 }}>
           {content.title}
         </div>
@@ -436,14 +462,12 @@ function ChannelContentRow({ content, onSelect }: { content: Content; onSelect?:
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 20, flexShrink: 0 }}>
-        {nativeMetrics.map(({ label, value }) => (
-          <div key={label} style={{ textAlign: 'right' }}>
-            <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>{value}</div>
-            <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)' }}>{label}</div>
-          </div>
-        ))}
-      </div>
+      {/* Metric values — labels are in the header row above, not repeated per-row */}
+      {colDefs.map(({ label, value }) => (
+        <div key={label} style={{ textAlign: 'right' }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>{value}</span>
+        </div>
+      ))}
     </div>
   )
 }
@@ -596,6 +620,30 @@ function PlatformDeepDive({
             </div>
             <Toggle options={CHANNEL_SORT_OPTIONS} value={sortBy} onChange={v => { setSortBy(v); setPage(1) }} />
           </div>
+
+          {/* Column header — one row of labels above the list, aligned to the same grid */}
+          {(() => {
+            const colLabels = getChannelColLabels(platform)
+            const colTpl    = getChannelColTemplate(platform)
+            return (
+              <div style={{
+                display: 'grid', gridTemplateColumns: colTpl, gap: '0 14px',
+                padding: '0 0 8px', borderBottom: '2px solid var(--color-border)',
+                marginBottom: 2,
+              }}>
+                <div /> {/* thumbnail column */}
+                <div style={{ fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-fainter)' }}>
+                  Title
+                </div>
+                {colLabels.map(label => (
+                  <div key={label} style={{ textAlign: 'right', fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-fainter)' }}>
+                    {label}
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
+
           {channelPage.map(item => (
             <ChannelContentRow key={item.id} content={item} onSelect={() => setSelectedContent(item)} />
           ))}

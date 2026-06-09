@@ -55,6 +55,7 @@ export function FollowerGrowthChart() {
               fillOpacity={0.75}
               stroke={PLATFORM_CONFIG[p as Platform]?.color ?? '#888'}
               strokeWidth={1}
+              connectNulls={true}
             />
           ))}
         </AreaChart>
