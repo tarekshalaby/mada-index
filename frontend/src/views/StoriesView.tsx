@@ -7,10 +7,12 @@ import { Toggle }           from '../components/Toggle'
 import { EmptyState }       from '../components/EmptyState'
 import { FilterDropdown }   from '../components/FilterDropdown'
 import { PlatformBadge, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
+import { prevPeriodOf, type Period } from '../components/DateRangeControl'
 import { Tooltip, MetricTip } from '../components/Tooltip'
 import { HonestyLabel }     from '../components/HonestyLabel'
-import { formatCompact }    from '../lib/metrics'
+import { formatCompact, computePercentileRank, computeDeltaPct } from '../lib/metrics'
 import { FORMAT_LABELS, SECTION_LABELS, METRIC_INFO, formatDateSpan } from '../lib/labels'
+import { PercentileBadge }  from '../components/PercentileBadge'
 import { StoryDetail }      from './StoryDetail'
 import { ContentDetail }    from './ContentDetail'
 
@@ -24,7 +26,7 @@ const SORT_OPTIONS = [
   },
   {
     value: 'we'           as SortMetric,
-    label: 'Engagement',
+    label: 'Weighted Engagement',
     icon:  <ChartBar weight="fill" size={13} />,
   },
   {
@@ -43,9 +45,11 @@ const PAGE_SIZE = 30
 
 // ─── Story row ────────────────────────────────────────────────────────────────
 
-function StoryRow({ story, sortBy, onClick }: {
+function StoryRow({ story, sortBy, pctl, wePctl, onClick }: {
   story: Story
   sortBy: SortMetric
+  pctl?: number      // percentile of primary metric vs current-period peers
+  wePctl?: number    // WE percentile — used as secondary when sorted by impressions
   onClick: () => void
 }) {
   const [hovered, setHovered] = useState(false)
@@ -226,7 +230,7 @@ function StoryRow({ story, sortBy, onClick }: {
       </div>
 
       {/* Primary metric */}
-      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 80 }}>
+      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 96 }}>
         <div style={{
           fontFamily:         'var(--font-display)',
           fontSize:           'var(--text-title-section)',
@@ -234,10 +238,18 @@ function StoryRow({ story, sortBy, onClick }: {
           color:              'var(--color-ink)',
           fontVariantNumeric: 'tabular-nums lining-nums',
           lineHeight:         1,
-          marginBottom:       5,
+          marginBottom:       4,
         }}>
           {metricValue}
         </div>
+
+        {/* Quality badge — always shown (peer set = current period's stories) */}
+        {pctl !== undefined && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 5 }}>
+            <PercentileBadge percentile={pctl} />
+          </div>
+        )}
+
         <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
           <span style={{
             fontFamily: 'var(--font-ui)',
@@ -250,8 +262,27 @@ function StoryRow({ story, sortBy, onClick }: {
           </span>
         </Tooltip>
 
-        {/* Secondary: impressions if not already primary */}
-        {sortBy !== 'impressions' && (
+        {/* Secondary: WE + badge when primary is impressions */}
+        {sortBy === 'impressions' && wePctl !== undefined && (
+          <div style={{ marginTop: 6 }}>
+            <div style={{
+              fontFamily:         'var(--font-ui)',
+              fontSize:           'var(--text-caption)',
+              color:              'var(--color-fainter)',
+              fontVariantNumeric: 'tabular-nums lining-nums',
+              marginBottom:       3,
+              textAlign:          'right',
+            }}>
+              {formatCompact(story.rollup.weightedEngagement)} WE
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <PercentileBadge percentile={wePctl} />
+            </div>
+          </div>
+        )}
+
+        {/* Secondary: impressions when sorted by site-clicks or date */}
+        {(sortBy === 'site-clicks' || sortBy === 'date') && (
           <div style={{
             fontFamily:         'var(--font-ui)',
             fontSize:           'var(--text-caption)',
@@ -280,7 +311,7 @@ interface StoriesViewProps {
 export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps) {
   const [selectedId,        setSelectedId       ] = useState<string | null>(initialStoryId ?? null)
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null)
-  const [sortBy,            setSortBy           ] = useState<SortMetric>('we')
+  const [sortBy,            setSortBy           ] = useState<SortMetric>('impressions')
   const [filterSection, setFilterSection] = useState<Section | undefined>()
   const [filterFormat,  setFilterFormat ] = useState<Format | undefined>()
   const [filterTopic,   setFilterTopic  ] = useState<string | undefined>()
@@ -361,7 +392,50 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
     siteClicks:  filtered.reduce((s, x) => s + x.rollup.siteClicks, 0),
   }), [filtered])
 
-  const activeFilterLabel = filterTopic || (filterAuthor && authorOptions.find(a => a.value === filterAuthor)?.label) || (filterSection && SECTION_LABELS[filterSection]) || (filterFormat && FORMAT_LABELS[filterFormat])
+  // Prior-period aggregate for delta arrows — apply the same active filters to prev period
+  const prevAggregate = useMemo(() => {
+    if (!period) return null
+    const prev = prevPeriodOf(period as Period)
+    if (!prev) return null
+    let items = getStoriesForPeriod(prev)
+    if (filterSection) items = items.filter(s => s.section === filterSection)
+    if (filterFormat)  items = items.filter(s => s.format  === filterFormat)
+    if (filterTopic)   items = items.filter(s => s.topics?.includes(filterTopic))
+    if (filterAuthor)  { const fa = filterAuthor; items = items.filter(s =>
+      s.memberIds.some((id: string) => getContentById(id)?.authorIds?.includes(fa))
+    ) }
+    return {
+      count:      items.length,
+      impressions: items.reduce((s, x) => s + x.rollup.impressions, 0),
+      we:          items.reduce((s, x) => s + x.rollup.weightedEngagement, 0),
+      siteClicks:  items.reduce((s, x) => s + x.rollup.siteClicks, 0),
+    }
+  }, [period, filterSection, filterFormat, filterTopic, filterAuthor])
+
+  // Per-row quality percentiles — computed once for the full filtered list
+  const percentileMaps = useMemo(() => {
+    if (sortBy === 'date') return { primary: new Map<string, number>(), we: new Map<string, number>() }
+    const getVal = (s: Story) =>
+      sortBy === 'impressions' ? s.rollup.impressions :
+      sortBy === 'we'          ? s.rollup.weightedEngagement :
+                                 s.rollup.siteClicks
+    const primaryVals = filtered.map(getVal)
+    const weVals      = filtered.map(s => s.rollup.weightedEngagement)
+    const primary = new Map<string, number>()
+    const we      = new Map<string, number>()
+    for (const s of filtered) {
+      primary.set(s.id, computePercentileRank(getVal(s), primaryVals))
+      if (sortBy === 'impressions') we.set(s.id, computePercentileRank(s.rollup.weightedEngagement, weVals))
+    }
+    return { primary, we }
+  }, [filtered, sortBy])
+
+  const activeFilterLabel = [
+    filterSection && SECTION_LABELS[filterSection],
+    filterFormat  && FORMAT_LABELS[filterFormat],
+    filterTopic,
+    filterAuthor  && authorOptions.find(a => a.value === filterAuthor)?.label,
+  ].filter(Boolean).join(' · ') || undefined
 
   if (selectedId) {
     const story = allStories.find(s => s.id === selectedId)
@@ -384,6 +458,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
       <StoryDetail
         story={story}
         members={getContentByStory(selectedId)}
+        peerStories={allStories}
         onBack={() => { setSelectedId(null); setSelectedContentId(null); onBack?.() }}
         onSelectContent={(id) => setSelectedContentId(id)}
       />
@@ -416,17 +491,35 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
             {activeFilterLabel}
           </div>
           <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', marginBottom: 10 }}>
-            {[
-              { label: 'Stories',     value: String(filtered.length) },
-              { label: 'Impressions', value: formatCompact(aggregate.impressions) },
-              { label: 'Engagement',  value: formatCompact(aggregate.we)          },
-              { label: 'Site Clicks', value: formatCompact(aggregate.siteClicks)  },
-            ].map(({ label, value }) => (
-              <div key={label}>
-                <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', marginBottom: 3 }}>{label}</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-section)', fontWeight: 600, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', lineHeight: 1 }}>{value}</div>
-              </div>
-            ))}
+            {([
+              { label: 'Stories',             value: String(filtered.length),             prev: prevAggregate?.count       ?? null },
+              { label: 'Impressions',         value: formatCompact(aggregate.impressions), prev: prevAggregate?.impressions ?? null },
+              { label: 'Weighted Engagement', value: formatCompact(aggregate.we),          prev: prevAggregate?.we          ?? null },
+              { label: 'Site Clicks',         value: formatCompact(aggregate.siteClicks),  prev: prevAggregate?.siteClicks  ?? null },
+            ] as { label: string; value: string; prev: number | null }[]).map(({ label, value, prev }) => {
+              const current =
+                label === 'Stories'             ? filtered.length :
+                label === 'Impressions'         ? aggregate.impressions :
+                label === 'Weighted Engagement' ? aggregate.we :
+                                                  aggregate.siteClicks
+              const delta = computeDeltaPct(current, prev)
+              const deltaPositive = delta !== null && delta >= 0
+              return (
+                <div key={label}>
+                  <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', marginBottom: 3 }}>{label}</div>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-section)', fontWeight: 600, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', lineHeight: 1 }}>{value}</div>
+                    {delta !== null ? (
+                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', fontWeight: 500, color: deltaPositive ? 'var(--color-good-text)' : 'var(--color-bad-text)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+                        {deltaPositive ? '+' : ''}{delta.toFixed(0)}%
+                      </span>
+                    ) : (
+                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>—</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
           </div>
           <HonestyLabel>story rollup totals · publish cohort</HonestyLabel>
         </div>
@@ -435,7 +528,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
       {/* Column header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 0, borderBottom: '2px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
         <span>{filtered.length} {filtered.length === 1 ? 'story' : 'stories'}{hasFilter && ` · filtered`}</span>
-        <span>Sorted by {sortBy === 'we' ? 'Weighted Engagement' : sortBy === 'impressions' ? 'Impressions' : sortBy === 'date' ? 'Most recent' : 'Site Clicks'}</span>
+        <span>Sorted by {sortBy === 'impressions' ? 'Impressions' : sortBy === 'we' ? 'Weighted Engagement' : sortBy === 'date' ? 'Most recent' : 'Site Clicks'}</span>
       </div>
 
       {/* Story rows — or empty state */}
@@ -452,6 +545,8 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
               key={story.id}
               story={story}
               sortBy={sortBy}
+              pctl={percentileMaps.primary.get(story.id)}
+              wePctl={percentileMaps.we.get(story.id)}
               onClick={() => setSelectedId(story.id)}
             />
           ))}

@@ -43,6 +43,19 @@ const PERIOD_GROUPS: { heading: string; options: { value: Period; label: string;
 // Flat lookup for the current period label
 const ALL_PERIODS = PERIOD_GROUPS.flatMap(g => g.options)
 
+// Map each named calendar period to its natural predecessor (for delta display).
+// Rolling and multi-month periods don't have a stable predecessor → return null.
+const PREV_PERIOD: Partial<Record<Period, Period>> = {
+  'may-26': 'apr-26',
+  'apr-26': 'mar-26',
+  'q2-26':  'q1-26',
+}
+
+/** Returns the prior calendar period for delta computation, or null when not applicable. */
+export function prevPeriodOf(period: Period): Period | null {
+  return PREV_PERIOD[period] ?? null
+}
+
 interface DateRangeControlProps {
   value:    Period
   onChange: (p: Period) => void

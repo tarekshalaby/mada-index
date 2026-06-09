@@ -1,17 +1,19 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, Eye, ChartBar, Link, Clock, ShareNetwork, CalendarBlank } from '@phosphor-icons/react'
-import { getAllContributors } from '../data/adapter'
-import type { Story, Content, Platform, Contributor } from '../data/types'
+import { getAllContributors, getContent } from '../data/adapter'
+import type { Story, Content, ContentType, Platform, Contributor } from '../data/types'
+import { PercentileBadge } from '../components/PercentileBadge'
+import { computePercentileRank, formatCompact, formatMinutes } from '../lib/metrics'
 import { HonestyLabel } from '../components/HonestyLabel'
 import { PlatformBadge, PLATFORM_CONFIG, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
 import { Tag } from '../components/Tag'
 import { Tooltip, MetricTip } from '../components/Tooltip'
-import { formatCompact, formatMinutes } from '../lib/metrics'
 import { FORMAT_LABELS, SECTION_LABELS, LANGUAGE_LABELS, METRIC_INFO, formatDateShort, formatDateSpan } from '../lib/labels'
 
 interface StoryDetailProps {
   story: Story
   members: Content[]
+  peerStories?: Story[]    // current period's stories — for header tile percentile badges
   onBack: () => void
   onSelectContent?: (id: string) => void
 }
@@ -19,7 +21,7 @@ interface StoryDetailProps {
 // ─── Member card ─────────────────────────────────────────────────────────────
 // Per-post card in the journey. §10.8: Views / WE / EQR / saves per post.
 
-function MemberCard({ content, onClick }: { content: Content; onClick?: () => void }) {
+function MemberCard({ content, eqPeers, onClick }: { content: Content; eqPeers?: number[]; onClick?: () => void }) {
   const [hovered, setHovered] = useState(false)
   const m = content.metrics
   const isNotCounted = !content.countsTowardStoryTotal
@@ -62,7 +64,10 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
             position:        'absolute',
             bottom:          3,
             right:           3,
-            backgroundColor: PLATFORM_CONFIG[content.platform].color,
+            // IG post = #8A3AB9 (matches PLATFORM_CONFIG), IG story = #D4537E
+            backgroundColor: content.platform === 'instagram' && content.type === 'ig-story'
+              ? '#D4537E'
+              : PLATFORM_CONFIG[content.platform].color,
             borderRadius:    3,
             width:           16,
             height:          16,
@@ -77,17 +82,28 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
     )
   }
 
+  // EQ percentile within Type (all content of same ContentType, all periods)
+  const eqPctl = eqPeers && eqPeers.length >= 4
+    ? computePercentileRank(m.engagementQualityRate, eqPeers)
+    : undefined
+
   // Metric stat items — no abbreviations, content-type aware
-  const statItems: { label: string; value: string; tipKey?: keyof typeof METRIC_INFO }[] = []
+  // badge: if set, render PercentileBadge instead of plain value
+  // rawHover: text shown on badge hover (raw EQR index)
+  const statItems: { label: string; value: string; tipKey?: keyof typeof METRIC_INFO; badge?: number; rawHover?: string }[] = []
   if (isArticle) {
     statItems.push({ label: 'Views',           value: formatCompact(m.impressions),                      tipKey: 'impressions' })
     if (m.attentionAvg > 0)
       statItems.push({ label: 'Avg read',      value: `${m.attentionAvg.toFixed(1)} min` })
-    statItems.push({ label: 'Quality rate',    value: m.engagementQualityRate.toFixed(0),                tipKey: 'eqr' })
+    statItems.push(eqPctl !== undefined
+      ? { label: 'Engagement Quality', value: '', tipKey: 'eqr', badge: eqPctl, rawHover: `Raw index: ${m.engagementQualityRate.toFixed(1)}` }
+      : { label: 'Engagement Quality', value: m.engagementQualityRate.toFixed(0), tipKey: 'eqr' })
   } else if (isYouTube) {
     statItems.push({ label: 'Views',           value: formatCompact(m.impressions),                      tipKey: 'impressions' })
     statItems.push({ label: 'Avg watch',       value: `${m.attentionAvg.toFixed(1)} min` })
-    statItems.push({ label: 'Quality rate',    value: m.engagementQualityRate.toFixed(0),                tipKey: 'eqr' })
+    statItems.push(eqPctl !== undefined
+      ? { label: 'Engagement Quality', value: '', tipKey: 'eqr', badge: eqPctl, rawHover: `Raw index: ${m.engagementQualityRate.toFixed(1)}` }
+      : { label: 'Engagement Quality', value: m.engagementQualityRate.toFixed(0), tipKey: 'eqr' })
   } else if (isPodcast) {
     statItems.push({ label: 'Streams',         value: formatCompact(m.impressions) })
     if (m.attentionAvg > 0)
@@ -98,8 +114,10 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
   } else {
     // Social posts — no "Imp", no "WE"
     statItems.push({ label: 'Impressions',     value: formatCompact(m.impressions),                      tipKey: 'impressions' })
-    statItems.push({ label: 'Engagement',      value: formatCompact(m.weightedEngagement),               tipKey: 'weighted_engagement' })
-    statItems.push({ label: 'Quality rate',    value: m.engagementQualityRate.toFixed(1),                tipKey: 'eqr' })
+    statItems.push({ label: 'Weighted Engagement', value: formatCompact(m.weightedEngagement),            tipKey: 'weighted_engagement' })
+    statItems.push(eqPctl !== undefined
+      ? { label: 'Engagement Quality', value: '', tipKey: 'eqr', badge: eqPctl, rawHover: `Raw index: ${m.engagementQualityRate.toFixed(1)}` }
+      : { label: 'Engagement Quality', value: m.engagementQualityRate.toFixed(1), tipKey: 'eqr' })
     if (m.saves > 0)
       statItems.push({ label: 'Saves',         value: formatCompact(m.saves) })
   }
@@ -175,9 +193,9 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
         <HonestyLabel>mentioned in · not counted</HonestyLabel>
       )}
 
-      {/* Metrics — tooltip on any labelled metric */}
+      {/* Metrics — tooltip on any labelled metric; EQ shows as percentile badge */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 14px' }}>
-        {statItems.map(({ label, value, tipKey }) => {
+        {statItems.map(({ label, value, tipKey, badge, rawHover }) => {
           const tip = tipKey ? METRIC_INFO[tipKey] : undefined
           const labelEl = (
             <span style={{
@@ -190,27 +208,38 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
               {label}
             </span>
           )
+          const valueEl = badge !== undefined ? (
+            rawHover ? (
+              <Tooltip tip={<span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)' }}>{rawHover}</span>}>
+                <span style={{ cursor: 'help' }}>
+                  <PercentileBadge percentile={badge} />
+                </span>
+              </Tooltip>
+            ) : (
+              <PercentileBadge percentile={badge} />
+            )
+          ) : (
+            <span style={{
+              fontFamily:         'var(--font-ui)',
+              fontSize:           'var(--text-data)',
+              fontWeight:         500,
+              color:              'var(--color-ink)',
+              fontVariantNumeric: 'tabular-nums lining-nums',
+            }}>
+              {value}
+            </span>
+          )
           return (
-            <span key={label} style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+            <span key={label} style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               {tip ? (
                 <Tooltip tip={<MetricTip name={tip.name} description={tip.description} />}>
                   {labelEl}
                 </Tooltip>
               ) : labelEl}
-              <span style={{
-                fontFamily:         'var(--font-ui)',
-                fontSize:           'var(--text-data)',
-                fontWeight:         500,
-                color:              'var(--color-ink)',
-                fontVariantNumeric: 'tabular-nums lining-nums',
-              }}>
-                {value}
-              </span>
+              {valueEl}
             </span>
           )
         })}
-        {/* "index · can exceed 100" appears once in the story-level "Why it worked"
-            section — not repeated on every card */}
       </div>
     </div>
   )
@@ -220,7 +249,7 @@ function MemberCard({ content, onClick }: { content: Content; onClick?: () => vo
 // One platform's section of the journey. §10.8: group header (site-click total +
 // post count) then member cards.
 
-function JourneyGroup({ platform, members, onSelectContent }: { platform: Platform; members: Content[]; onSelectContent?: (id: string) => void }) {
+function JourneyGroup({ platform, members, eqPctlByType, onSelectContent }: { platform: Platform; members: Content[]; eqPctlByType?: (type: ContentType) => number[]; onSelectContent?: (id: string) => void }) {
   const sorted      = [...members].sort((a, b) => new Date(a.publishedAt).getTime() - new Date(b.publishedAt).getTime())
   const siteClicks  = members.reduce((s, c) => s + c.metrics.siteClicks, 0)
   const isInstagram = platform === 'instagram'
@@ -279,6 +308,7 @@ function JourneyGroup({ platform, members, onSelectContent }: { platform: Platfo
           <MemberCard
             key={member.id}
             content={member}
+            eqPeers={eqPctlByType ? eqPctlByType(member.type) : undefined}
             onClick={onSelectContent ? () => onSelectContent(member.id) : undefined}
           />
         ))}
@@ -289,9 +319,32 @@ function JourneyGroup({ platform, members, onSelectContent }: { platform: Platfo
 
 // ─── Story detail ─────────────────────────────────────────────────────────────
 
-export function StoryDetail({ story, members, onBack, onSelectContent }: StoryDetailProps) {
+export function StoryDetail({ story, members, peerStories, onBack, onSelectContent }: StoryDetailProps) {
   // Scroll to top when the detail opens
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [story.id])
+
+  // Header tile percentiles vs current-period peers (suppress when < 4 peers)
+  const peerMetrics = useMemo(() => {
+    if (!peerStories || peerStories.length < 4) return null
+    return {
+      impressions: computePercentileRank(story.rollup.impressions,           peerStories.map(s => s.rollup.impressions)),
+      we:          computePercentileRank(story.rollup.weightedEngagement,     peerStories.map(s => s.rollup.weightedEngagement)),
+      siteClicks:  computePercentileRank(story.rollup.siteClicks,             peerStories.map(s => s.rollup.siteClicks)),
+      attention:   computePercentileRank(story.rollup.attentionTotalMinutes,  peerStories.map(s => s.rollup.attentionTotalMinutes)),
+    }
+  }, [story, peerStories])
+
+  // EQ peer values by ContentType — all content in cache, grouped for O(1) per-card lookup
+  const eqPctlByType = useMemo((): (type: ContentType) => number[] => {
+    const allContent = getContent()
+    const byType = new Map<ContentType, number[]>()
+    for (const c of allContent) {
+      const arr = byType.get(c.type) ?? []
+      arr.push(c.metrics.engagementQualityRate)
+      byType.set(c.type, arr)
+    }
+    return (type: ContentType) => byType.get(type) ?? []
+  }, [])
 
   // Group members by platform, maintain canonical journey order
   const byPlatform = new Map<Platform, Content[]>()
@@ -412,13 +465,13 @@ export function StoryDetail({ story, members, onBack, onSelectContent }: StoryDe
             }}
           >
             {([
-              { label: 'Impressions',         value: formatCompact(story.rollup.impressions),                       icon: <Eye weight="fill" size={13} />,          tipKey: 'impressions'         as const },
-              { label: 'Weighted Engagement', value: formatCompact(story.rollup.weightedEngagement),                icon: <ChartBar weight="fill" size={13} />,     tipKey: 'weighted_engagement' as const },
-              { label: 'Site Clicks',         value: formatCompact(story.rollup.siteClicks),                        icon: <Link weight="fill" size={13} />,         tipKey: 'site_clicks'         as const },
-              { label: 'Attention',           value: formatMinutes(story.rollup.attentionTotalMinutes),              icon: <Clock weight="fill" size={13} />,        tipKey: 'attention'           as const },
-              { label: 'Platforms',           value: String(story.rollup.platformCount),                            icon: <ShareNetwork weight="fill" size={13} />, tipKey: 'platforms'           as const },
-              { label: 'Period',              value: formatDateSpan(story.publishedFirst, story.publishedLast),      icon: <CalendarBlank weight="fill" size={13} />, tipKey: null },
-            ]).map(({ label, value, icon, tipKey }) => {
+              { label: 'Impressions',         value: formatCompact(story.rollup.impressions),                       icon: <Eye weight="fill" size={13} />,           tipKey: 'impressions'         as const, pctl: peerMetrics?.impressions },
+              { label: 'Weighted Engagement', value: formatCompact(story.rollup.weightedEngagement),                icon: <ChartBar weight="fill" size={13} />,      tipKey: 'weighted_engagement' as const, pctl: peerMetrics?.we },
+              { label: 'Site Clicks',         value: formatCompact(story.rollup.siteClicks),                        icon: <Link weight="fill" size={13} />,          tipKey: 'site_clicks'         as const, pctl: peerMetrics?.siteClicks },
+              { label: 'Attention',           value: formatMinutes(story.rollup.attentionTotalMinutes),              icon: <Clock weight="fill" size={13} />,         tipKey: 'attention'           as const, pctl: peerMetrics?.attention },
+              { label: 'Platforms',           value: String(story.rollup.platformCount),                            icon: <ShareNetwork weight="fill" size={13} />,  tipKey: 'platforms'           as const, pctl: undefined },
+              { label: 'Period',              value: formatDateSpan(story.publishedFirst, story.publishedLast),      icon: <CalendarBlank weight="fill" size={13} />, tipKey: null,                           pctl: undefined },
+            ] as { label: string; value: string; icon: React.ReactNode; tipKey: keyof typeof METRIC_INFO | null; pctl: number | undefined }[]).map(({ label, value, icon, tipKey, pctl }) => {
               const tip = tipKey ? METRIC_INFO[tipKey] : null
               const labelInner = (
                 <span style={{
@@ -451,9 +504,11 @@ export function StoryDetail({ story, members, onBack, onSelectContent }: StoryDe
                     fontVariantNumeric: 'tabular-nums lining-nums',
                     lineHeight:         1,
                     letterSpacing:      '-0.01em',
+                    marginBottom:       pctl !== undefined ? 6 : 0,
                   }}>
                     {value}
                   </div>
+                  {pctl !== undefined && <PercentileBadge percentile={pctl} />}
                 </div>
               )
             })}
@@ -516,7 +571,7 @@ export function StoryDetail({ story, members, onBack, onSelectContent }: StoryDe
       </div>
 
       {orderedGroups.map(({ platform, members: groupMembers }) => (
-        <JourneyGroup key={platform} platform={platform} members={groupMembers} onSelectContent={onSelectContent} />
+        <JourneyGroup key={platform} platform={platform} members={groupMembers} eqPctlByType={eqPctlByType} onSelectContent={onSelectContent} />
       ))}
     </div>
   )
