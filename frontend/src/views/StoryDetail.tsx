@@ -496,22 +496,21 @@ export function StoryDetail({ story, members, peerStories, onBack, onSelectConte
                       </Tooltip>
                     ) : labelInner}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'stretch', gap: 8 }}>
                     {pctl !== undefined && (() => {
-                      const band = getPercentileBand(pctl)
-                      const barColor = band === 'top'
-                        ? 'var(--color-good-solid)'
-                        : band === 'bottom'
-                        ? 'var(--color-bad-text)'
-                        : 'var(--color-neutral-text)'
+                      // 5-colour quintile scale: green → lime → amber → orange → red
+                      const barColor = pctl >= 80 ? '#22C55E'
+                        : pctl >= 60             ? '#84CC16'
+                        : pctl >= 40             ? '#F59E0B'
+                        : pctl >= 20             ? '#F97316'
+                        :                          '#EF4444'
                       return (
                         <div style={{
                           width:           3,
-                          height:          22,
                           borderRadius:    2,
                           backgroundColor: barColor,
                           flexShrink:      0,
-                          opacity:         0.75,
+                          opacity:         0.85,
                         }} />
                       )
                     })()}
