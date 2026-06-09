@@ -15,8 +15,10 @@ import { ContentDetail }    from './ContentDetail'
 type SortCol = 'published' | 'impressions' | 'engagement' | 'siteClicks'
 type SortDir = 'desc' | 'asc'
 
-// Columns: thumbnail · content · date · impressions · weighted engagement · site clicks
-const GRID = '80px 1fr 72px 110px 126px 80px'
+// Columns: thumbnail · content · date · [impressions + engagement combined] · site clicks
+// Impressions and Engagement share a single flex cell (76px + 8px gap + 80px = 164px)
+// so there is no CSS grid gap between the two metric numbers.
+const GRID = '80px 1fr 72px 164px 72px'
 
 // Minimum peers of the same Type for a percentile bar to be meaningful
 const MIN_PEERS = 4
@@ -147,23 +149,23 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
         {formatDateShort(item.publishedAt)}
       </div>
 
-      {/* Impressions — underline colour encodes exposure percentile (within-Type) */}
-      <div style={{ textAlign: 'right' }}>
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.exposurePercentile) }}>
-          {formatCompact(m.impressions)}
-        </span>
-      </div>
-
-      {/* Weighted Engagement — outer div fills the grid column; Tooltip wraps just the number */}
-      <div style={{ textAlign: 'right' }}>
-        <Tooltip
-          tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged per impression.`} />}
-          placement="below"
-        >
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.qualityPercentile) }}>
-            {formatCompact(m.weightedEngagement)}
+      {/* Impressions + Engagement — one flex cell, no grid gap between them */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ width: 76, flexShrink: 0, textAlign: 'right' }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.exposurePercentile) }}>
+            {formatCompact(m.impressions)}
           </span>
-        </Tooltip>
+        </div>
+        <div style={{ width: 80, flexShrink: 0, textAlign: 'right' }}>
+          <Tooltip
+            tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged per impression.`} />}
+            placement="below"
+          >
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.qualityPercentile) }}>
+              {formatCompact(m.weightedEngagement)}
+            </span>
+          </Tooltip>
+        </div>
       </div>
 
       {/* Site Clicks */}
@@ -302,17 +304,16 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         </div>
       </div>
 
-      {/* Secondary filters — language toggle · topic · author */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasSecondaryFilter ? 12 : 16, flexWrap: 'wrap' }}>
-        <Toggle
-          options={[
-            { value: 'both', label: 'Both' },
-            { value: 'ar',   label: 'Arabic' },
-            { value: 'en',   label: 'English' },
-          ]}
-          value={filterLanguage}
-          onChange={v => { setFilterLanguage(v); setPage(1) }}
-        />
+      {/* Secondary filters — right-aligned: [Clear] [Topic ▼] [Author ▼] [Language toggle] */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginBottom: hasSecondaryFilter ? 12 : 16, flexWrap: 'wrap' }}>
+        {hasSecondaryFilter && (
+          <button
+            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined); setFilterLanguage('both') }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', padding: 0, textDecoration: 'underline', marginRight: 4 }}
+          >
+            Clear
+          </button>
+        )}
         <FilterDropdown
           label="Topic"
           options={topicOptions}
@@ -327,14 +328,15 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
             onChange={setFilterAuthor as (v: string | undefined) => void}
           />
         )}
-        {hasSecondaryFilter && (
-          <button
-            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined); setFilterLanguage('both') }}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', padding: 0, textDecoration: 'underline' }}
-          >
-            Clear
-          </button>
-        )}
+        <Toggle
+          options={[
+            { value: 'both', label: 'Both' },
+            { value: 'ar',   label: 'Arabic' },
+            { value: 'en',   label: 'English' },
+          ]}
+          value={filterLanguage}
+          onChange={v => { setFilterLanguage(v); setPage(1) }}
+        />
       </div>
 
       {/* Table */}
@@ -344,9 +346,16 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
           <div />
           <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--color-fainter)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Content</div>
           <ColHeader col="published"   label="Date"               align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-          <ColHeader col="impressions" label="Impressions"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
-          <ColHeader col="engagement"  label="Engagement" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
-          <ColHeader col="siteClicks"  label="Site Clicks"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />} />
+          {/* Combined Impressions + Engagement header — mirrors the data row flex structure */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 76, flexShrink: 0 }}>
+              <ColHeader col="impressions" label="Impressions" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
+            </div>
+            <div style={{ width: 80, flexShrink: 0 }}>
+              <ColHeader col="engagement" label="Engagement" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
+            </div>
+          </div>
+          <ColHeader col="siteClicks" label="Site Clicks" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />} />
         </div>
 
         {filtered.length === 0
