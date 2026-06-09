@@ -6,9 +6,8 @@
 //
 // Cards: top 24 visible by default; "Show all N" expands the rest.
 //
-// MIN_SAMPLE guard: contributors with fewer than MIN_SAMPLE pieces in the
-// selected period are excluded from all charts and the card grid. This prevents
-// one-off attributed pieces from distorting ranked lists with misleading EQRs.
+// MIN_SAMPLE guard: contributors with zero pieces in the selected period are
+// excluded. Value is 1 — anyone with at least one attributed article appears.
 
 import { useState, useMemo } from 'react'
 import {
@@ -26,7 +25,7 @@ import { ContributorDetail } from './ContributorDetail'
 // Contributors with fewer than this many pieces in the period are excluded from
 // rankings, the card grid, and charts to prevent one-off attributions from
 // producing misleading quality rates.
-const MIN_SAMPLE = 3
+const MIN_SAMPLE = 1
 
 // ─── Section colour palette ───────────────────────────────────────────────────
 // Avatar border + sparklines only — NOT used for ranking bars (those are neutral
@@ -297,7 +296,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-page)', fontWeight: 500, color: 'var(--color-ink)', margin: '0 0 4px' }}>Team</h1>
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body)', color: 'var(--color-muted)', margin: 0 }}>
-            {sorted.length} contributor{sorted.length !== 1 ? 's' : ''} with ≥{MIN_SAMPLE} pieces{hasFilter ? ' · filtered' : ''}
+            {sorted.length} contributor{sorted.length !== 1 ? 's' : ''}{hasFilter ? ' · filtered' : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -357,7 +356,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
           {/* platform identity or quality signal. Section palette is for identity.  */}
           <div style={chartCard}>
             <div style={chartTitle}>Top contributors</div>
-            <div style={chartSub}>Ranked by impressions in this period · showing top 10 · ≥{MIN_SAMPLE} pieces only</div>
+            <div style={chartSub}>Ranked by impressions in this period · showing top 10</div>
             <div>
               {/* Column headers */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
