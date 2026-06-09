@@ -15,7 +15,7 @@ type SortCol = 'published' | 'impressions' | 'engagement' | 'siteClicks'
 type SortDir = 'desc' | 'asc'
 
 // Columns: thumbnail · content · date · impressions · weighted engagement · site clicks
-const GRID = '60px 1fr 72px 110px 148px 80px'
+const GRID = '60px 1fr 72px 110px 126px 80px'
 
 // Minimum peers of the same Type for a percentile bar to be meaningful
 const MIN_PEERS = 4
@@ -108,8 +108,8 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
       onClick={onSelect}
       style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '13px 12px', borderBottom: '1px solid var(--color-border)', backgroundColor: hovered ? 'rgba(36,31,24,0.04)' : 'transparent', cursor: 'pointer', transition: 'background-color 120ms ease' }}
     >
-      {/* Thumbnail — 60×60 square */}
-      <div style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
+      {/* Thumbnail — 60×44 (4:3) */}
+      <div style={{ width: 60, height: 44, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
         {item.thumbnailUrl
           ? <img src={item.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={20} color="var(--color-fainter)" /></div>
@@ -156,9 +156,9 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
         </span>
       </div>
 
-      {/* Weighted Engagement — bar encodes quality (EQR) percentile; raw EQR on hover */}
+      {/* Weighted Engagement — bar encodes quality (EQR) percentile; EQR value on hover */}
       <Tooltip
-        tip={<MetricTip name="Engagement Quality" description={`Raw quality index: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged relative to reach (Weighted Engagement ÷ Impressions × 100).`} />}
+        tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)}`} />}
         placement="below"
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
@@ -348,7 +348,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
           <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--color-fainter)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Content</div>
           <ColHeader col="published"   label="Date"               align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
           <ColHeader col="impressions" label="Impressions"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
-          <ColHeader col="engagement"  label="Weighted Engagement" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
+          <ColHeader col="engagement"  label="Engagement" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
           <ColHeader col="siteClicks"  label="Site Clicks"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />} />
         </div>
 
