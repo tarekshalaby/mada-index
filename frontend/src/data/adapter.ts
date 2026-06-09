@@ -720,18 +720,26 @@ export function getPrevPlatformAggregates(): Record<string, PlatformAgg> {
 
 export function getPrevFollowersByPlatform(): Partial<Record<Platform, number>> {
   const snaps = _sdkCache?.followers
-  // Live mode: use the second-to-latest real snapshot per platform as the baseline.
-  // If only one snapshot exists (just started recording) → no delta for that platform.
+  // Live mode: compare the two most-recent DISTINCT dates per platform.
+  // Automations sometimes write duplicate records on the same day — dedup first
+  // so we always compare different weeks, not two runs of the same snapshot job.
   if (snaps?.length) {
-    const byPlatform: Partial<Record<Platform, { count: number; date: string }[]>> = {}
+    // Step 1: for each platform+date keep the highest reading (handles same-day dupes)
+    const byPlatformDate: Partial<Record<Platform, Record<string, number>>> = {}
     for (const snap of snaps) {
-      if (!byPlatform[snap.platform]) byPlatform[snap.platform] = []
-      byPlatform[snap.platform]!.push({ count: snap.followerCount, date: snap.snapshotDate })
+      if (!byPlatformDate[snap.platform]) byPlatformDate[snap.platform] = {}
+      const existing = byPlatformDate[snap.platform]![snap.snapshotDate]
+      if (existing === undefined || snap.followerCount > existing) {
+        byPlatformDate[snap.platform]![snap.snapshotDate] = snap.followerCount
+      }
     }
+    // Step 2: sort distinct dates newest-first; use second date as the prev baseline
     const result: Partial<Record<Platform, number>> = {}
-    for (const [platform, snapshots] of Object.entries(byPlatform)) {
-      const sorted = [...snapshots].sort((a, b) => b.date.localeCompare(a.date))
-      if (sorted.length >= 2) result[platform as Platform] = sorted[1].count
+    for (const [platform, dateMap] of Object.entries(byPlatformDate)) {
+      const sortedDates = Object.keys(dateMap).sort().reverse()
+      if (sortedDates.length >= 2) {
+        result[platform as Platform] = dateMap[sortedDates[1]]
+      }
     }
     return result
   }
@@ -884,7 +892,9 @@ export function getLatestFollowersByPlatform(): Partial<Record<Platform, number>
   const latest: Partial<Record<string, { count: number; date: string }>> = {}
   for (const snap of snaps) {
     const prev = latest[snap.platform]
-    if (!prev || snap.snapshotDate > prev.date) {
+    // Update if: newer date, OR same date but higher count (dedup same-day automation runs)
+    if (!prev || snap.snapshotDate > prev.date ||
+        (snap.snapshotDate === prev.date && snap.followerCount > prev.count)) {
       latest[snap.platform] = { count: snap.followerCount, date: snap.snapshotDate }
     }
   }

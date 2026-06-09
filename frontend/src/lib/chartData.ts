@@ -212,14 +212,23 @@ export function getFollowerGrowthData(): { data: FollowerRow[]; platforms: Platf
   // 2. Bucket every snapshot to its calendar week (Monday).
   //    Platforms that snapshot on different days within the same week collapse to one row,
   //    giving a consistent weekly X-axis regardless of which day each platform was captured.
-  //    Within a bucket, keep the latest reading per platform.
+  //    Within a bucket, keep the highest reading per platform — guards against same-day
+  //    automation duplicates that would otherwise make the tile and chart disagree.
+  //
+  //    Key built from LOCAL date components (not toISOString) so the Monday label is
+  //    not shifted back one day by the UTC conversion in UTC+ timezones.
   const byWeek: Record<string, Partial<Record<Platform, number>>> = {}
   for (const snap of history) {
     const monday = getMondayOfWeek(new Date(snap.snapshotDate + 'T12:00:00'))
-    const key    = monday.toISOString().split('T')[0]
+    const y  = monday.getFullYear()
+    const mo = String(monday.getMonth() + 1).padStart(2, '0')
+    const d  = String(monday.getDate()).padStart(2, '0')
+    const key = `${y}-${mo}-${d}`
     if (!byWeek[key]) byWeek[key] = {}
-    // Keep the most recent snapshot within the week (overwrite earlier ones)
-    byWeek[key][snap.platform] = snap.followerCount
+    const existing = byWeek[key][snap.platform]
+    if (existing === undefined || snap.followerCount > existing) {
+      byWeek[key][snap.platform] = snap.followerCount
+    }
   }
 
   // 3. Walk weeks in chronological order; forward-fill last-known value per platform
