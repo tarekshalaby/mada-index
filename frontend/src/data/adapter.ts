@@ -196,6 +196,60 @@ function mapFollowerPlatform(name: string): Platform {
   return 'website'
 }
 
+// ─── Follower aggregation helpers ─────────────────────────────────────────────
+
+// Groups raw snapshots by platform+date.
+// • Records within 1% of each other → automation duplicates — keep the max.
+// • Records >1% apart on the same platform+date → separate sub-entities
+//   (e.g. Newsletter English + Newsletter Arabic) — sum them.
+// This gives one clean FollowersSnapshot per platform per date.
+function getAggregatedFollowerSnaps(): FollowersSnapshot[] {
+  const raw = _sdkCache?.followers ?? SAMPLE_FOLLOWERS
+  const groups: Record<string, FollowersSnapshot[]> = {}
+  for (const snap of raw) {
+    const key = `${snap.platform}:${snap.snapshotDate}`
+    if (!groups[key]) groups[key] = []
+    groups[key].push(snap)
+  }
+  return Object.values(groups).map(snaps => {
+    // Sort highest first so dedup loop always keeps the larger value
+    const sorted = [...snaps].sort((a, b) => b.followerCount - a.followerCount)
+    const deduped: FollowersSnapshot[] = []
+    for (const snap of sorted) {
+      const isDupe = deduped.some(d =>
+        Math.abs(d.followerCount - snap.followerCount) / Math.max(d.followerCount, 1) <= 0.01
+      )
+      if (!isDupe) deduped.push(snap)
+    }
+    const total = deduped.reduce((s, x) => s + x.followerCount, 0)
+    return { ...deduped[0], followerCount: total }
+  })
+}
+
+// Returns the per-platform follower totals from the most recent snapshot
+// on or before `date`. Returns only platforms that have data.
+function snapAtOrBefore(
+  date:  string,
+  snaps: FollowersSnapshot[],
+): { values: Partial<Record<Platform, number>>; latestSnapDate: string | null } {
+  const byPlatform: Partial<Record<Platform, { count: number; date: string }>> = {}
+  for (const snap of snaps) {
+    if (snap.snapshotDate > date) continue
+    const prev = byPlatform[snap.platform]
+    if (!prev || snap.snapshotDate > prev.date) {
+      byPlatform[snap.platform] = { count: snap.followerCount, date: snap.snapshotDate }
+    }
+  }
+  const snapDates   = Object.values(byPlatform).map(v => v!.date)
+  const latestSnapDate = snapDates.length ? [...snapDates].sort().pop()! : null
+  return {
+    values: Object.fromEntries(
+      Object.entries(byPlatform).map(([p, v]) => [p, v!.count]),
+    ) as Partial<Record<Platform, number>>,
+    latestSnapDate,
+  }
+}
+
 // ─── Cache builder ────────────────────────────────────────────────────────────
 
 export function buildSdkCache(
@@ -620,35 +674,22 @@ export function getStoryById(id: string): Story | undefined {
 
 export function getFollowersHistory(_range?: DateRange): FollowersSnapshot[] {
   if (!_sdkCache) return SAMPLE_FOLLOWERS
-  return _sdkCache.followers.length ? _sdkCache.followers : SAMPLE_FOLLOWERS
+  // Return aggregated snaps: automation duplicates removed, newsletter sub-platforms summed
+  return _sdkCache.followers.length ? getAggregatedFollowerSnaps() : SAMPLE_FOLLOWERS
 }
 
 export function getLatestFollowerTotal(): number {
-  const snaps = _sdkCache?.followers ?? SAMPLE_FOLLOWERS
-  const latest: Record<string, number> = {}
-  for (const snap of snaps) {
-    if (
-      !latest[snap.platform] ||
-      snap.snapshotDate >
-        (snaps.find(
-          s => s.platform === snap.platform && s.followerCount === latest[snap.platform],
-        )?.snapshotDate ?? '')
-    ) {
-      latest[snap.platform] = snap.followerCount
-    }
-  }
-  return Object.values(latest).reduce((sum, n) => sum + n, 0)
+  const snaps = getAggregatedFollowerSnaps()
+  const latestDate = snaps.map(s => s.snapshotDate).sort().pop() ?? ''
+  const { values } = snapAtOrBefore(latestDate, snaps)
+  return Object.values(values).reduce((sum, n) => sum + n, 0)
 }
 
-/** Returns false when there is only one snapshot per platform (no meaningful delta). */
+/** Returns false when there is only one distinct snapshot date (no meaningful delta). */
 export function hasSufficientFollowerHistory(): boolean {
-  const snaps = _sdkCache?.followers ?? SAMPLE_FOLLOWERS
-  const countByPlatform: Record<string, number> = {}
-  for (const snap of snaps) {
-    countByPlatform[snap.platform] = (countByPlatform[snap.platform] ?? 0) + 1
-  }
-  // Need at least 2 snapshots for at least one platform to compute a real delta.
-  return Object.values(countByPlatform).some(n => n >= 2)
+  const snaps       = getAggregatedFollowerSnaps()
+  const distinctDates = new Set(snaps.map(s => s.snapshotDate))
+  return distinctDates.size >= 2
 }
 
 export interface PeriodTotals {
@@ -718,33 +759,14 @@ export function getPrevPlatformAggregates(): Record<string, PlatformAgg> {
   return result
 }
 
+/** @deprecated Use getFollowersForPeriod(period).start instead. */
 export function getPrevFollowersByPlatform(): Partial<Record<Platform, number>> {
-  const snaps = _sdkCache?.followers
-  // Live mode: compare the two most-recent DISTINCT dates per platform.
-  // Automations sometimes write duplicate records on the same day — dedup first
-  // so we always compare different weeks, not two runs of the same snapshot job.
-  if (snaps?.length) {
-    // Step 1: for each platform+date keep the highest reading (handles same-day dupes)
-    const byPlatformDate: Partial<Record<Platform, Record<string, number>>> = {}
-    for (const snap of snaps) {
-      if (!byPlatformDate[snap.platform]) byPlatformDate[snap.platform] = {}
-      const existing = byPlatformDate[snap.platform]![snap.snapshotDate]
-      if (existing === undefined || snap.followerCount > existing) {
-        byPlatformDate[snap.platform]![snap.snapshotDate] = snap.followerCount
-      }
-    }
-    // Step 2: sort distinct dates newest-first; use second date as the prev baseline
-    const result: Partial<Record<Platform, number>> = {}
-    for (const [platform, dateMap] of Object.entries(byPlatformDate)) {
-      const sortedDates = Object.keys(dateMap).sort().reverse()
-      if (sortedDates.length >= 2) {
-        result[platform as Platform] = dateMap[sortedDates[1]]
-      }
-    }
-    return result
-  }
-  // Sample-data fallback
-  return SAMPLE_PREV_FOLLOWERS
+  // Kept for backward compat; AudienceTab now uses getFollowersForPeriod.
+  if (!_sdkCache?.followers.length) return SAMPLE_PREV_FOLLOWERS
+  const snaps      = getAggregatedFollowerSnaps()
+  const sortedDates = [...new Set(snaps.map(s => s.snapshotDate))].sort()
+  if (sortedDates.length < 2) return {}
+  return snapAtOrBefore(sortedDates[sortedDates.length - 2], snaps).values
 }
 
 export interface TopicSummary {
@@ -888,17 +910,35 @@ export function getContributorMonthly(contributorId: string): ContributorMonthly
 }
 
 export function getLatestFollowersByPlatform(): Partial<Record<Platform, number>> {
-  const snaps  = _sdkCache?.followers ?? SAMPLE_FOLLOWERS
-  const latest: Partial<Record<string, { count: number; date: string }>> = {}
-  for (const snap of snaps) {
-    const prev = latest[snap.platform]
-    // Update if: newer date, OR same date but higher count (dedup same-day automation runs)
-    if (!prev || snap.snapshotDate > prev.date ||
-        (snap.snapshotDate === prev.date && snap.followerCount > prev.count)) {
-      latest[snap.platform] = { count: snap.followerCount, date: snap.snapshotDate }
-    }
+  const snaps      = getAggregatedFollowerSnaps()
+  const latestDate = snaps.map(s => s.snapshotDate).sort().pop() ?? ''
+  return snapAtOrBefore(latestDate, snaps).values
+}
+
+// ─── Period-aware follower query ──────────────────────────────────────────────
+// Returns follower totals at the end of the given period, and at the start
+// (for a delta badge). comparisonLabel is null when there is no prior snapshot
+// to compare against (e.g. first week of recording — don't show the Chip).
+export function getFollowersForPeriod(period: string): {
+  end:             Partial<Record<Platform, number>>
+  start:           Partial<Record<Platform, number>>
+  comparisonLabel: string | null
+} {
+  const snaps     = getAggregatedFollowerSnaps()
+  const range     = periodToRange(period)
+  const allDates  = snaps.map(s => s.snapshotDate).sort()
+  const endDate   = range?.end   ?? allDates[allDates.length - 1] ?? ''
+  const startDate = range?.start ?? allDates[0] ?? ''
+
+  const { values: end,   latestSnapDate: endSnap   } = snapAtOrBefore(endDate,   snaps)
+  const { values: start, latestSnapDate: startSnap } = snapAtOrBefore(startDate, snaps)
+
+  // No meaningful comparison if start and end land on the same real snapshot
+  if (!startSnap || !endSnap || startSnap === endSnap) {
+    return { end, start: {}, comparisonLabel: null }
   }
-  return Object.fromEntries(
-    Object.entries(latest).map(([p, v]) => [p, v!.count]),
-  ) as Partial<Record<Platform, number>>
+
+  const d = new Date(startSnap + 'T12:00:00')
+  const comparisonLabel = 'vs. ' + d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return { end, start, comparisonLabel }
 }

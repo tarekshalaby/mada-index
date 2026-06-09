@@ -7,7 +7,7 @@ import {
 import { ArrowLeft, Eye, ChartBar, Link, Gauge, FolderOpen, CalendarBlank } from '@phosphor-icons/react'
 import {
   getPeriodContent, getLatestFollowersByPlatform,
-  getPrevPlatformAggregates, getPrevFollowersByPlatform,
+  getPrevPlatformAggregates, getFollowersForPeriod,
 } from '../data/adapter'
 import type { Content, ContentMetrics, Platform } from '../data/types'
 import { ContentDetail } from './ContentDetail'
@@ -272,21 +272,32 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
 
 // ─── Audience tab ─────────────────────────────────────────────────────────────
 // Follower tiles (click → deep-dive) + follower growth chart.
+// Period-aware: shows followers as of the period end, delta vs. period start.
+// comparisonLabel is null when there is no prior snapshot to compare against
+// (first week of recording), so no Chip is shown until history builds up.
 
-function AudienceTab({ onSelectPlatform }: { onSelectPlatform: (p: Platform) => void }) {
-  const followersByPlatform = getLatestFollowersByPlatform()
-  const prevFollowers       = getPrevFollowersByPlatform()
+function AudienceTab({ period, onSelectPlatform }: {
+  period: string
+  onSelectPlatform: (p: Platform) => void
+}) {
+  const { end: followersByPlatform, start: prevFollowers, comparisonLabel } =
+    getFollowersForPeriod(period)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       <div>
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-section)', fontWeight: 500, color: 'var(--color-ink)', margin: '0 0 16px 0' }}>
-          Current followers
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-section)', fontWeight: 500, color: 'var(--color-ink)', margin: 0 }}>
+            Current followers
+          </h3>
+          {comparisonLabel && (
+            <HonestyLabel>{comparisonLabel}</HonestyLabel>
+          )}
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
           {JOURNEY_PLATFORM_ORDER.filter(p => followersByPlatform[p]).map(p => {
             const curr = followersByPlatform[p]!
-            const prev = prevFollowers[p] ?? 0
+            const prev = comparisonLabel ? (prevFollowers[p] ?? 0) : 0
             const { color } = PLATFORM_CONFIG[p]
             return (
               <button
@@ -814,7 +825,7 @@ export function PlatformsView({ period = 'may-26' }: { period?: string }) {
       </div>
 
       {tab === 'performance' && <PerformanceTab period={period} onSelectPlatform={setSelectedPlatform} />}
-      {tab === 'audience'    && <AudienceTab    onSelectPlatform={setSelectedPlatform} />}
+      {tab === 'audience'    && <AudienceTab    period={period} onSelectPlatform={setSelectedPlatform} />}
       {tab === 'publishing'  && <PublishingTab  period={period} />}
     </div>
   )
