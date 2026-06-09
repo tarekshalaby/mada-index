@@ -338,7 +338,7 @@ function TopPerformersCard({ period, onSelectStory }: { period?: string; onSelec
         ))
       )}
       <div style={{ marginTop: 12, paddingTop: 8, borderTop: '1px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
-        Ranked by {rankBy === 'eqr' ? 'engagement quality (WE ÷ impressions)' : 'weighted engagement'} · publish cohort
+        Ranked by {rankBy === 'eqr' ? 'engagement quality (weighted engagement ÷ impressions)' : 'weighted engagement'} · publish cohort
       </div>
     </Card>
   )

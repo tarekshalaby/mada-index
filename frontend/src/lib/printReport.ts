@@ -65,8 +65,15 @@ export function buildPrintHTML(data: PrintData, generatedDate: string): string {
     <tr style="page-break-inside:avoid;">
       <td style="padding:11px 14px 11px 0;border-bottom:1px solid #eaeaea;width:24px;font-family:'Newsreader',Georgia,serif;font-size:15px;font-weight:600;color:#d0d0d0;text-align:right;vertical-align:top;">${i + 1}</td>
       <td style="padding:11px 0;border-bottom:1px solid #eaeaea;vertical-align:top;">
-        <div dir="auto" style="font-family:'Newsreader',Georgia,serif;font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.5;margin-bottom:3px;">${esc(s.title || '—')}</div>
-        <div style="font-size:10px;color:#aaa;">${s.rollup.memberCount ?? 1} platform${(s.rollup.memberCount ?? 1) !== 1 ? 's' : ''}</div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          ${s.thumbnailUrl
+            ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="width:52px;height:52px;object-fit:cover;border-radius:5px;flex-shrink:0;border:1px solid #eaeaea;" />`
+            : ''}
+          <div>
+            <div dir="auto" style="font-family:'Newsreader',Georgia,serif;font-size:13px;font-weight:600;color:#1a1a1a;line-height:1.5;margin-bottom:3px;">${esc(s.title || '—')}</div>
+            <div style="font-size:10px;color:#aaa;">${s.rollup.memberCount ?? 1} platform${(s.rollup.memberCount ?? 1) !== 1 ? 's' : ''}</div>
+          </div>
+        </div>
       </td>
       <td style="padding:11px 0 11px 24px;border-bottom:1px solid #eaeaea;text-align:right;vertical-align:top;white-space:nowrap;">
         <div style="font-family:'Newsreader',Georgia,serif;font-size:15px;font-weight:600;color:#1a1a1a;font-variant-numeric:tabular-nums;line-height:1.2;">${formatCompact(s.rollup.impressions)}</div>
@@ -74,7 +81,7 @@ export function buildPrintHTML(data: PrintData, generatedDate: string): string {
       </td>
       <td style="padding:11px 0 11px 20px;border-bottom:1px solid #eaeaea;text-align:right;vertical-align:top;white-space:nowrap;">
         <div style="font-family:'Newsreader',Georgia,serif;font-size:15px;font-weight:600;color:#1a1a1a;font-variant-numeric:tabular-nums;line-height:1.2;">${formatCompact(s.rollup.weightedEngagement)}</div>
-        <div style="font-size:10px;color:#aaa;margin-top:2px;">WE</div>
+        <div style="font-size:10px;color:#aaa;margin-top:2px;">Engagement</div>
       </td>
     </tr>`).join('')
 

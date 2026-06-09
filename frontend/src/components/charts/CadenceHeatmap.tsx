@@ -90,7 +90,7 @@ export function CadenceHeatmap({ period, platform }: { period?: string; platform
                 return (
                   <div
                     key={di}
-                    title={val > 0 ? (mode === 'publishing' ? `${val} pieces` : `${formatCompact(val)} WE`) : undefined}
+                    title={val > 0 ? (mode === 'publishing' ? `${val} pieces` : `${formatCompact(val)} weighted engagement`) : undefined}
                     style={{
                       aspectRatio:     '1 / 1',
                       backgroundColor: color,

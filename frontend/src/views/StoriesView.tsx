@@ -45,11 +45,10 @@ const PAGE_SIZE = 30
 
 // ─── Story row ────────────────────────────────────────────────────────────────
 
-function StoryRow({ story, sortBy, pctl, wePctl, onClick }: {
+function StoryRow({ story, sortBy, pctl, onClick }: {
   story: Story
   sortBy: SortMetric
   pctl?: number      // percentile of primary metric vs current-period peers
-  wePctl?: number    // WE percentile — used as secondary when sorted by impressions
   onClick: () => void
 }) {
   const [hovered, setHovered] = useState(false)
@@ -229,8 +228,8 @@ function StoryRow({ story, sortBy, pctl, wePctl, onClick }: {
         </div>
       </div>
 
-      {/* Primary metric */}
-      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 96 }}>
+      {/* Primary metric — number + label·badge on one compact line */}
+      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 80 }}>
         <div style={{
           fontFamily:         'var(--font-display)',
           fontSize:           'var(--text-title-section)',
@@ -238,48 +237,26 @@ function StoryRow({ story, sortBy, pctl, wePctl, onClick }: {
           color:              'var(--color-ink)',
           fontVariantNumeric: 'tabular-nums lining-nums',
           lineHeight:         1,
-          marginBottom:       4,
+          marginBottom:       6,
         }}>
           {metricValue}
         </div>
 
-        {/* Quality badge — always shown (peer set = current period's stories) */}
-        {pctl !== undefined && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 5 }}>
-            <PercentileBadge percentile={pctl} />
-          </div>
-        )}
-
-        <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
-          <span style={{
-            fontFamily: 'var(--font-ui)',
-            fontSize:   'var(--text-caption)',
-            color:      'var(--color-faint)',
-            cursor:     'help',
-            borderBottom: '1px dotted var(--color-border-strong)',
-          }}>
-            {metricLabel}
-          </span>
-        </Tooltip>
-
-        {/* Secondary: WE + badge when primary is impressions */}
-        {sortBy === 'impressions' && wePctl !== undefined && (
-          <div style={{ marginTop: 6 }}>
-            <div style={{
-              fontFamily:         'var(--font-ui)',
-              fontSize:           'var(--text-caption)',
-              color:              'var(--color-fainter)',
-              fontVariantNumeric: 'tabular-nums lining-nums',
-              marginBottom:       3,
-              textAlign:          'right',
+        {/* Label + badge on the same line */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+          <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
+            <span style={{
+              fontFamily:   'var(--font-ui)',
+              fontSize:     'var(--text-caption)',
+              color:        'var(--color-faint)',
+              cursor:       'help',
+              borderBottom: '1px dotted var(--color-border-strong)',
             }}>
-              {formatCompact(story.rollup.weightedEngagement)} WE
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <PercentileBadge percentile={wePctl} />
-            </div>
-          </div>
-        )}
+              {metricLabel}
+            </span>
+          </Tooltip>
+          {pctl !== undefined && <PercentileBadge percentile={pctl} />}
+        </div>
 
         {/* Secondary: impressions when sorted by site-clicks or date */}
         {(sortBy === 'site-clicks' || sortBy === 'date') && (
@@ -290,7 +267,7 @@ function StoryRow({ story, sortBy, pctl, wePctl, onClick }: {
             marginTop:          5,
             fontVariantNumeric: 'tabular-nums lining-nums',
           }}>
-            {formatCompact(story.rollup.impressions)} imp
+            {formatCompact(story.rollup.impressions)} impressions
           </div>
         )}
       </div>
@@ -413,21 +390,16 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
   }, [period, filterSection, filterFormat, filterTopic, filterAuthor])
 
   // Per-row quality percentiles — computed once for the full filtered list
-  const percentileMaps = useMemo(() => {
-    if (sortBy === 'date') return { primary: new Map<string, number>(), we: new Map<string, number>() }
+  const percentileMap = useMemo(() => {
+    if (sortBy === 'date') return new Map<string, number>()
     const getVal = (s: Story) =>
       sortBy === 'impressions' ? s.rollup.impressions :
       sortBy === 'we'          ? s.rollup.weightedEngagement :
                                  s.rollup.siteClicks
-    const primaryVals = filtered.map(getVal)
-    const weVals      = filtered.map(s => s.rollup.weightedEngagement)
-    const primary = new Map<string, number>()
-    const we      = new Map<string, number>()
-    for (const s of filtered) {
-      primary.set(s.id, computePercentileRank(getVal(s), primaryVals))
-      if (sortBy === 'impressions') we.set(s.id, computePercentileRank(s.rollup.weightedEngagement, weVals))
-    }
-    return { primary, we }
+    const vals = filtered.map(getVal)
+    const map  = new Map<string, number>()
+    for (const s of filtered) map.set(s.id, computePercentileRank(getVal(s), vals))
+    return map
   }, [filtered, sortBy])
 
   const activeFilterLabel = [
@@ -545,8 +517,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
               key={story.id}
               story={story}
               sortBy={sortBy}
-              pctl={percentileMaps.primary.get(story.id)}
-              wePctl={percentileMaps.we.get(story.id)}
+              pctl={percentileMap.get(story.id)}
               onClick={() => setSelectedId(story.id)}
             />
           ))}
