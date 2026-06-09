@@ -209,32 +209,36 @@ export function getFollowerGrowthData(): { data: FollowerRow[]; platforms: Platf
   // 1. All unique platforms that appear in history
   const platforms = [...new Set(history.map(s => s.platform))] as Platform[]
 
-  // 2. Raw values per date (may be sparse — different platforms snapshot on different days)
-  const byDate: Record<string, Partial<Record<Platform, number>>> = {}
+  // 2. Bucket every snapshot to its calendar week (Monday).
+  //    Platforms that snapshot on different days within the same week collapse to one row,
+  //    giving a consistent weekly X-axis regardless of which day each platform was captured.
+  //    Within a bucket, keep the latest reading per platform.
+  const byWeek: Record<string, Partial<Record<Platform, number>>> = {}
   for (const snap of history) {
-    if (!byDate[snap.snapshotDate]) byDate[snap.snapshotDate] = {}
-    byDate[snap.snapshotDate][snap.platform] = snap.followerCount
+    const monday = getMondayOfWeek(new Date(snap.snapshotDate + 'T12:00:00'))
+    const key    = monday.toISOString().split('T')[0]
+    if (!byWeek[key]) byWeek[key] = {}
+    // Keep the most recent snapshot within the week (overwrite earlier ones)
+    byWeek[key][snap.platform] = snap.followerCount
   }
 
-  // 3. Walk dates in chronological order; carry the last-known value forward
-  //    (follower counts are point-in-time totals, not per-period events — forward-fill is correct)
-  const allDates = Object.keys(byDate).sort()
+  // 3. Walk weeks in chronological order; forward-fill last-known value per platform
+  //    (follower counts are point-in-time totals, not per-period events)
+  const allWeeks   = Object.keys(byWeek).sort()
   const lastKnown: Partial<Record<Platform, number>> = {}
 
-  const data: FollowerRow[] = allDates.map(iso => {
-    const snap = byDate[iso]
-    // Update last-known for any platform with a fresh reading this date
+  const data: FollowerRow[] = allWeeks.map(iso => {
+    const snap = byWeek[iso]
     for (const p of platforms) {
       if (snap[p] !== undefined) lastKnown[p] = snap[p]
     }
-    // Build row: forward-filled value for every platform seen at least once so far
+    // Label: "Wk Jun 2" style, anchored to the Monday
     const row: FollowerRow = {
-      date:    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      date:    'Wk ' + new Date(iso + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
       rawDate: iso,
     }
     for (const p of platforms) {
       if (lastKnown[p] !== undefined) row[p] = lastKnown[p]!
-      // else: platform hasn't appeared yet — omit from this date (Recharts skips undefined)
     }
     return row
   })

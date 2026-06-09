@@ -718,7 +718,24 @@ export function getPrevPlatformAggregates(): Record<string, PlatformAgg> {
   return result
 }
 
-export function getPrevFollowersByPlatform(): Record<Platform, number> {
+export function getPrevFollowersByPlatform(): Partial<Record<Platform, number>> {
+  const snaps = _sdkCache?.followers
+  // Live mode: use the second-to-latest real snapshot per platform as the baseline.
+  // If only one snapshot exists (just started recording) → no delta for that platform.
+  if (snaps?.length) {
+    const byPlatform: Partial<Record<Platform, { count: number; date: string }[]>> = {}
+    for (const snap of snaps) {
+      if (!byPlatform[snap.platform]) byPlatform[snap.platform] = []
+      byPlatform[snap.platform]!.push({ count: snap.followerCount, date: snap.snapshotDate })
+    }
+    const result: Partial<Record<Platform, number>> = {}
+    for (const [platform, snapshots] of Object.entries(byPlatform)) {
+      const sorted = [...snapshots].sort((a, b) => b.date.localeCompare(a.date))
+      if (sorted.length >= 2) result[platform as Platform] = sorted[1].count
+    }
+    return result
+  }
+  // Sample-data fallback
   return SAMPLE_PREV_FOLLOWERS
 }
 
