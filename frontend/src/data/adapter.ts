@@ -883,8 +883,8 @@ export function getContributorStats(contributorId: string): ContributorStats {
   const items       = getContentByContributor(contributorId)
   const impressions = items.reduce((s, c) => s + c.metrics.impressions, 0)
   const we          = items.reduce((s, c) => s + c.metrics.weightedEngagement, 0)
-  const eqrs        = items.map(c => c.metrics.engagementQualityRate)
-  const avgEqr      = eqrs.length ? eqrs.reduce((s, v) => s + v, 0) / eqrs.length : 0
+  // EQR = weighted ratio ΣWE ÷ ΣImpressions × 100. Never average per-piece rates.
+  const avgEqr      = impressions > 0 ? (we / impressions) * 100 : 0
   const storyIds    = new Set(items.map(c => c.storyId).filter(Boolean))
   return {
     articleCount:       items.length,

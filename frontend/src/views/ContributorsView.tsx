@@ -1,17 +1,19 @@
 // Team view — scales to 100+ contributors.
 //
 // Charts:
-//   1. Team output trend  — aggregate articles/month, single area (always readable)
+//   1. Team output trend  — aggregate articles/month, area (always readable)
 //   2. Top-10 ranked      — horizontal bars with avatar, name, impressions (HTML, not Recharts)
-//   3. Performance scatter — all contributors, 5px dots coloured by editorial section
 //
 // Cards: top 24 visible by default; "Show all N" expands the rest.
+//
+// MIN_SAMPLE guard: contributors with fewer than MIN_SAMPLE pieces in the
+// selected period are excluded from all charts and the card grid. This prevents
+// one-off attributed pieces from distorting ranked lists with misleading EQRs.
 
 import { useState, useMemo } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTip, ResponsiveContainer,
-  ScatterChart, Scatter, ReferenceLine,
 } from 'recharts'
 import { getPeriodContent, getAllContributors } from '../data/adapter'
 import type { Section, Format, Contributor } from '../data/types'
@@ -20,8 +22,15 @@ import { formatCompact }     from '../lib/metrics'
 import { FORMAT_LABELS, SECTION_LABELS } from '../lib/labels'
 import { ContributorDetail } from './ContributorDetail'
 
+// ─── Minimum sample ───────────────────────────────────────────────────────────
+// Contributors with fewer than this many pieces in the period are excluded from
+// rankings, the card grid, and charts to prevent one-off attributions from
+// producing misleading quality rates.
+const MIN_SAMPLE = 3
+
 // ─── Section colour palette ───────────────────────────────────────────────────
-// Used in both the scatter dots and the ranked bar — consistent cross-chart coding.
+// Avatar border + sparklines only — NOT used for ranking bars (those are neutral
+// ink per the design rules: platform identity ≠ benchmark meaning).
 
 const SECTION_COLORS: Record<string, string> = {
   'egypt-politics':         '#C0392B',
@@ -52,46 +61,12 @@ interface ContribStats {
 interface ContribRow {
   contributor:    Contributor
   stats:          ContribStats
-  sectionColor:   string       // section-derived, used in charts + bars
-  avatarColor:    string       // index-derived, used for avatar bg + sparkline
+  sectionColor:   string       // section-derived — avatar border + sparkline only
+  avatarColor:    string       // index-derived — avatar bg
   primarySection: Section | undefined
 }
 
-interface ScatterPoint {
-  x: number; y: number; z: number
-  contributor: Contributor; color: string; section: Section | undefined
-  showLabel: boolean   // true when team is small enough to label each dot
-}
-
 type MonthPoint = { month: string; articles: number }
-
-// ─── Scatter: dot (+ optional name label for small teams) ────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function SmallDot(props: any) {
-  const cx:      number | undefined     = props.cx
-  const cy:      number | undefined     = props.cy
-  const payload: ScatterPoint | undefined = props.payload
-  if (cx == null || cy == null) return null
-  const color = payload?.color ?? FALLBACK_COLOR
-  const r     = payload?.showLabel ? 6 : 5
-  return (
-    <g>
-      <circle cx={cx} cy={cy} r={r}
-        fill={color} fillOpacity={0.65}
-        stroke={color} strokeWidth={0.5} strokeOpacity={0.35}
-      />
-      {payload?.showLabel && payload.contributor && (
-        <text
-          x={cx + r + 4} y={cy + 4}
-          style={{ fontFamily: 'var(--font-ui)', fontSize: '10px', fill: 'var(--color-muted)', pointerEvents: 'none' }}
-        >
-          {payload.contributor.name}
-        </text>
-      )}
-    </g>
-  )
-}
 
 // ─── Tooltips ─────────────────────────────────────────────────────────────────
 
@@ -102,21 +77,6 @@ function TrendTip({ active, payload, label }: any) {
     <div style={{ backgroundColor: 'var(--color-raised)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '10px 14px', fontFamily: 'var(--font-ui)', fontSize: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
       <div style={{ fontWeight: 600, color: 'var(--color-ink)', marginBottom: 4 }}>{label}</div>
       <div style={{ color: 'var(--color-muted)' }}>{payload[0].value} articles published</div>
-    </div>
-  )
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ScatterTip({ active, payload }: any) {
-  if (!active || !payload?.length) return null
-  const d = payload[0].payload as ScatterPoint
-  return (
-    <div style={{ backgroundColor: 'var(--color-raised)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '10px 14px', fontFamily: 'var(--font-ui)', fontSize: 12, boxShadow: '0 2px 8px rgba(0,0,0,0.07)' }}>
-      <div style={{ fontWeight: 600, color: 'var(--color-ink)', marginBottom: 3 }}>{d.contributor.name}</div>
-      {d.section && <div style={{ color: 'var(--color-faint)', fontSize: 11, marginBottom: 6 }}>{SECTION_LABELS[d.section]}</div>}
-      <div style={{ color: 'var(--color-muted)' }}>{d.z} {d.z === 1 ? 'article' : 'articles'}</div>
-      <div style={{ color: 'var(--color-muted)' }}>{formatCompact(d.y)} impressions</div>
-      <div style={{ color: 'var(--color-muted)' }}>Quality rate {d.x.toFixed(1)}</div>
     </div>
   )
 }
@@ -227,12 +187,15 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
     return items
   }, [authoredContent, filterSection, filterFormat, filterTopic])
 
-  // Per-contributor stats + section colour, sorted by impressions
+  // Per-contributor stats, sorted by impressions.
+  // MIN_SAMPLE guard: exclude contributors with fewer than MIN_SAMPLE pieces —
+  // avoids one-off attributions producing misleading quality rates in rankings.
+  // EQR = ΣWE ÷ ΣImpressions × 100 (weighted ratio, never mean of per-piece rates).
   const sorted = useMemo((): ContribRow[] =>
     allContributors
       .map((c, idx): ContribRow | null => {
         const cc = filteredContent.filter(item => item.authorIds!.includes(c.id))
-        if (!cc.length) return null
+        if (cc.length < MIN_SAMPLE) return null   // ← minimum sample guard
 
         // Primary section — most-published-in
         const secCounts = new Map<string, number>()
@@ -245,8 +208,8 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
 
         const impressions = cc.reduce((s, x) => s + x.metrics.impressions, 0)
         const we          = cc.reduce((s, x) => s + x.metrics.weightedEngagement, 0)
-        const eqrs        = cc.map(x => x.metrics.engagementQualityRate)
-        const avgEqr      = eqrs.reduce((s, v) => s + v, 0) / eqrs.length
+        // EQR = ΣWE ÷ ΣImpressions × 100 (never mean of per-piece rates)
+        const avgEqr      = impressions > 0 ? (we / impressions) * 100 : 0
 
         return {
           contributor: c,
@@ -274,37 +237,6 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([m, articles]) => ({ month: MONTH_ABBR[m.slice(5)] ?? m.slice(5), articles }))
   }, [filteredContent])
-
-  // Chart 3 — scatter (all contributors)
-  const scatterData = useMemo((): ScatterPoint[] =>
-    sorted.map(({ contributor, stats, sectionColor, primarySection }) => ({
-      x: stats.avgEqr, y: stats.impressions, z: Math.max(stats.articleCount, 1),
-      contributor, color: sectionColor, section: primarySection,
-      showLabel: sorted.length < 20,   // label each dot when the team fits comfortably
-    })),
-  [sorted])
-
-  // Tight x-axis domain so dots don't cluster in the far-right of an 0-→-max range
-  const scatterXDomain = useMemo((): [number, number] => {
-    if (!scatterData.length) return [0, 100]
-    const xs  = scatterData.map(d => d.x)
-    const min = Math.min(...xs)
-    const max = Math.max(...xs)
-    const pad = Math.max((max - min) * 0.2, 5)
-    return [Math.max(0, Math.floor(min - pad)), Math.ceil(max + pad)]
-  }, [scatterData])
-
-  const meanEqr          = scatterData.length ? scatterData.reduce((s, d) => s + d.x, 0) / scatterData.length : 50
-  const meanImpressions  = scatterData.length ? scatterData.reduce((s, d) => s + d.y, 0) / scatterData.length : 0
-  const maxImpressions   = sorted[0]?.stats.impressions ?? 1
-
-  // Sections actually present in the scatter (for legend)
-  const legendSections = useMemo(() => {
-    const seen = new Set<string>()
-    for (const d of scatterData) { if (d.section) seen.add(d.section) }
-    const hasNoSection = scatterData.some(d => !d.section)
-    return { sections: [...seen] as Section[], hasNoSection }
-  }, [scatterData])
 
   // Per-contributor sparkline data (from filtered content)
   const sparkMap = useMemo(() => {
@@ -342,6 +274,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
 
   const hasFilter    = !!(filterSection || filterFormat || filterTopic)
   const top10        = sorted.slice(0, 10)
+  const maxImpressions = sorted[0]?.stats.impressions ?? 1
   const visibleCards = showAll ? sorted : sorted.slice(0, CARD_LIMIT)
   const hasMore      = sorted.length > CARD_LIMIT
 
@@ -364,7 +297,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
         <div>
           <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 'var(--text-title-page)', fontWeight: 500, color: 'var(--color-ink)', margin: '0 0 4px' }}>Team</h1>
           <p style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-body)', color: 'var(--color-muted)', margin: 0 }}>
-            {sorted.length} contributor{sorted.length !== 1 ? 's' : ''}{hasFilter ? ' · filtered' : ''}
+            {sorted.length} contributor{sorted.length !== 1 ? 's' : ''} with ≥{MIN_SAMPLE} pieces{hasFilter ? ' · filtered' : ''}
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -420,9 +353,11 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
           </div>
 
           {/* ── Chart 2: Top 10 ranked — HTML bars ──────────────────────── */}
+          {/* Bars use neutral ink — ranking is a structural comparison, not a       */}
+          {/* platform identity or quality signal. Section palette is for identity.  */}
           <div style={chartCard}>
             <div style={chartTitle}>Top contributors</div>
-            <div style={chartSub}>Ranked by impressions · showing top 10</div>
+            <div style={chartSub}>Ranked by impressions in this period · showing top 10 · ≥{MIN_SAMPLE} pieces only</div>
             <div>
               {/* Column headers */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid var(--color-border)', marginBottom: 4 }}>
@@ -455,9 +390,9 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
                     <span style={{ width: 150, flexShrink: 0, fontFamily: 'var(--font-ui)', fontSize: 13, color: 'var(--color-ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {contributor.name}
                     </span>
-                    {/* Bar */}
+                    {/* Bar — neutral ink, structural comparison only */}
                     <div style={{ flex: 1, height: 6, backgroundColor: 'var(--color-border)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ width: `${pct}%`, height: '100%', backgroundColor: sectionColor, borderRadius: 3 }} />
+                      <div style={{ width: `${pct}%`, height: '100%', backgroundColor: 'var(--color-ink)', borderRadius: 3, opacity: 0.7 }} />
                     </div>
                     {/* Impressions */}
                     <span style={{ width: 60, textAlign: 'right', fontFamily: 'var(--font-ui)', fontSize: 12, fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', flexShrink: 0 }}>
@@ -471,76 +406,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
                 )
               })}
             </div>
-            {/* Section colour legend — explains bar colours */}
-            {(legendSections.sections.length > 0 || legendSections.hasNoSection) && (
-              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--color-border)' }}>
-                <div style={{ fontFamily: 'var(--font-ui)', fontSize: 10, color: 'var(--color-fainter)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 6 }}>
-                  Bar colour = primary editorial section
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-                  {legendSections.sections.map(sec => (
-                    <div key={sec} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: SECTION_COLORS[sec] ?? FALLBACK_COLOR, display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--color-muted)' }}>{SECTION_LABELS[sec]}</span>
-                    </div>
-                  ))}
-                  {legendSections.hasNoSection && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: FALLBACK_COLOR, display: 'inline-block', flexShrink: 0 }} />
-                      <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--color-muted)' }}>No section assigned</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
-
-          {/* ── Chart 3: Performance scatter — all contributors ──────────── */}
-          {scatterData.length >= 2 && (
-            <div style={chartCard}>
-              <div style={chartTitle}>Performance map</div>
-              <div style={chartSub}>
-                X = quality rate · Y = impressions · colour = primary section · dashed lines = team average · hover to identify
-              </div>
-              <ResponsiveContainer width="100%" height={scatterData.length < 20 ? 360 : 340}>
-                <ScatterChart margin={{ top: 10, right: scatterData.length < 20 ? 160 : 30, bottom: 20, left: 10 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  {/* X: quality rate — domain computed tightly from actual data so dots aren't squashed left */}
-                  <XAxis dataKey="x" type="number" name="Quality Rate"
-                    domain={scatterXDomain}
-                    tick={axTick} axisLine={false} tickLine={false}
-                  />
-                  {/* Y: impressions — always starts at 0; no rotated label (subtitle explains axes) */}
-                  <YAxis dataKey="y" type="number" name="Impressions"
-                    domain={[0, 'auto']}
-                    tickFormatter={v => formatCompact(v as number)}
-                    tick={axTick} axisLine={false} tickLine={false} width={50}
-                  />
-                  {/* Quadrant dividers at team mean */}
-                  <ReferenceLine x={meanEqr}        stroke="var(--color-border-strong)" strokeDasharray="4 3" strokeWidth={1} label={{ value: 'avg quality', position: 'insideBottomRight', fontSize: 9, fill: 'var(--color-fainter)', fontFamily: 'var(--font-ui)' }} />
-                  <ReferenceLine y={meanImpressions} stroke="var(--color-border-strong)" strokeDasharray="4 3" strokeWidth={1} label={{ value: 'avg impressions', position: 'insideTopRight', fontSize: 9, fill: 'var(--color-fainter)', fontFamily: 'var(--font-ui)' }} />
-                  <RechartsTip content={<ScatterTip />} cursor={{ strokeDasharray: '3 3' }} />
-                  <Scatter data={scatterData} shape={SmallDot} />
-                </ScatterChart>
-              </ResponsiveContainer>
-
-              {/* Section colour legend */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px', marginTop: 6 }}>
-                {legendSections.sections.map(sec => (
-                  <div key={sec} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: SECTION_COLORS[sec] ?? FALLBACK_COLOR, flexShrink: 0 }} />
-                    <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--color-muted)' }}>{SECTION_LABELS[sec]}</span>
-                  </div>
-                ))}
-                {legendSections.hasNoSection && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: FALLBACK_COLOR, flexShrink: 0 }} />
-                    <span style={{ fontFamily: 'var(--font-ui)', fontSize: 11, color: 'var(--color-muted)' }}>No section</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* ── Contributor cards ────────────────────────────────────────── */}
           <div>
