@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Eye, ChartBar, Newspaper } from '@phosphor-icons/react'
+import { Eye, ChartBar, CalendarBlank, Newspaper } from '@phosphor-icons/react'
 import { getStories, getStoriesForPeriod, getContentByStory, getContentById, getAllContributors } from '../data/adapter'
 import type { Story, Format, Section, Contributor } from '../data/types'
 import { Tag }              from '../components/Tag'
@@ -16,9 +16,14 @@ import { PercentileBadge }  from '../components/PercentileBadge'
 import { StoryDetail }      from './StoryDetail'
 import { ContentDetail }    from './ContentDetail'
 
-type SortMetric = 'we' | 'impressions'
+type SortMetric = 'date' | 'impressions' | 'we'
 
 const SORT_OPTIONS = [
+  {
+    value: 'date'         as SortMetric,
+    label: 'Date',
+    icon:  <CalendarBlank weight="fill" size={13} />,
+  },
   {
     value: 'impressions'  as SortMetric,
     label: 'Impressions',
@@ -71,6 +76,7 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
   const { metricValue, metricLabel, metricInfo } = useMemo(() => sortBy === 'we'
     ? { metricValue: formatCompact(story.rollup.weightedEngagement), metricLabel: 'Weighted Engagement', metricInfo: METRIC_INFO.weighted_engagement }
     : { metricValue: formatCompact(story.rollup.impressions),        metricLabel: 'Impressions',         metricInfo: METRIC_INFO.impressions        }
+  // date sort also shows Impressions — useful context when browsing the timeline
   , [sortBy, story.rollup])
 
   return (
@@ -303,9 +309,9 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
   // Sort, then filter
   const sorted = useMemo(() => {
     return [...allStories].sort((a, b) =>
-      sortBy === 'we'
-        ? b.rollup.weightedEngagement - a.rollup.weightedEngagement
-        : b.rollup.impressions        - a.rollup.impressions
+      sortBy === 'date' ? b.publishedFirst.localeCompare(a.publishedFirst) :
+      sortBy === 'we'   ? b.rollup.weightedEngagement - a.rollup.weightedEngagement
+                        : b.rollup.impressions        - a.rollup.impressions
     )
   }, [allStories, sortBy])
 
@@ -458,7 +464,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
       {/* Column header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 0, borderBottom: '2px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
         <span>{filtered.length} {filtered.length === 1 ? 'story' : 'stories'}{hasFilter && ` · filtered`}</span>
-        <span>Sorted by {sortBy === 'we' ? 'Weighted Engagement' : 'Impressions'}</span>
+        <span>Sorted by {sortBy === 'date' ? 'Most recent' : sortBy === 'we' ? 'Weighted Engagement' : 'Impressions'}</span>
       </div>
 
       {/* Story rows — or empty state */}
