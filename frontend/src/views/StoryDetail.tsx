@@ -496,7 +496,25 @@ export function StoryDetail({ story, members, peerStories, onBack, onSelectConte
                       </Tooltip>
                     ) : labelInner}
                   </div>
-                  <div style={{ display: 'inline-block' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {pctl !== undefined && (() => {
+                      const band = getPercentileBand(pctl)
+                      const barColor = band === 'top'
+                        ? 'var(--color-good-solid)'
+                        : band === 'bottom'
+                        ? 'var(--color-bad-text)'
+                        : 'var(--color-neutral-text)'
+                      return (
+                        <div style={{
+                          width:           3,
+                          height:          22,
+                          borderRadius:    2,
+                          backgroundColor: barColor,
+                          flexShrink:      0,
+                          opacity:         0.75,
+                        }} />
+                      )
+                    })()}
                     <div style={{
                       fontFamily:         'var(--font-display)',
                       fontSize:           'var(--text-display-l)',
@@ -505,12 +523,6 @@ export function StoryDetail({ story, members, peerStories, onBack, onSelectConte
                       fontVariantNumeric: 'tabular-nums lining-nums',
                       lineHeight:         1,
                       letterSpacing:      '-0.01em',
-                      paddingBottom:      pctl !== undefined ? 5 : 0,
-                      // Coloured underline — top quartile green, middle grey, bottom red
-                      borderBottom: pctl !== undefined ? (() => {
-                        const band = getPercentileBand(pctl)
-                        return `3px solid ${band === 'top' ? 'var(--color-good-solid)' : band === 'bottom' ? 'var(--color-bad-text)' : 'var(--color-neutral-text)'}`
-                      })() : 'none',
                     }}>
                       {value}
                     </div>
