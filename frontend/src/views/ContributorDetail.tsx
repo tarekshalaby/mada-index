@@ -7,7 +7,7 @@
 // • KPI tile benchmark bars: percentile rank (left-bar only) among all contributors in period.
 // • Article table quintile underlines: rank within this contributor's own portfolio.
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, type CSSProperties, type ReactNode } from 'react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTip, ResponsiveContainer,
@@ -33,7 +33,7 @@ function quintileColor(pct?: number): string {
   return '#EF4444'
 }
 
-function underlineStyle(pct?: number): React.CSSProperties {
+function underlineStyle(pct?: number): CSSProperties {
   if (pct === undefined) return {}
   return { borderBottom: `2px solid ${quintileColor(pct)}`, paddingBottom: 2, display: 'inline-block' as const }
 }
@@ -42,7 +42,7 @@ function underlineStyle(pct?: number): React.CSSProperties {
 // thumbnail | title | impressions | engagement | quality
 const COL = '80px 1fr 84px 84px 84px'
 
-const HDR_STYLE: React.CSSProperties = {
+const HDR_STYLE: CSSProperties = {
   fontFamily: 'var(--font-ui)', fontSize: 10, fontWeight: 600,
   letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-fainter)',
 }
@@ -174,7 +174,7 @@ export function ContributorDetail({ contributor, period, onBack }: Props) {
 
   // ─── KPI tile — left-bar benchmark, no percentile text ──────────────────
   function KpiTile({ icon, label, value, pct }: {
-    icon: React.ReactNode; label: string; value: string; pct?: number
+    icon: ReactNode; label: string; value: string; pct?: number
   }) {
     return (
       <div style={{ backgroundColor: 'var(--color-tile)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -395,7 +395,7 @@ export function ContributorDetail({ contributor, period, onBack }: Props) {
 // ─── Row wrapper — grid-aligned, clickable ────────────────────────────────────
 
 function ArticleRow({ isLast, onSelect, children }: {
-  isLast: boolean; onSelect: () => void; children: React.ReactNode
+  isLast: boolean; onSelect: () => void; children: ReactNode
 }) {
   const [hovered, setHovered] = useState(false)
   return (
