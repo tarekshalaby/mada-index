@@ -49,19 +49,23 @@ function usePlatformAggregates(lang: LangFilter = 'all', period = 'may-26') {
       if (lang === 'all') return true
       return c.language === lang || c.language === 'both'
     })
-    const map = new Map<Platform, { impressions: number; we: number; siteClicks: number; posts: number }>()
+    const map = new Map<Platform, { impressions: number; we: number; siteClicks: number; posts: number; interactions: number }>()
     for (const c of all) {
-      const e = map.get(c.platform) ?? { impressions: 0, we: 0, siteClicks: 0, posts: 0 }
+      const e = map.get(c.platform) ?? { impressions: 0, we: 0, siteClicks: 0, posts: 0, interactions: 0 }
       map.set(c.platform, {
-        impressions: e.impressions + c.metrics.impressions,
-        we:          e.we          + c.metrics.weightedEngagement,
-        siteClicks:  e.siteClicks  + c.metrics.siteClicks,
-        posts:       e.posts + 1,
+        impressions:  e.impressions  + c.metrics.impressions,
+        we:           e.we           + c.metrics.weightedEngagement,
+        siteClicks:   e.siteClicks   + c.metrics.siteClicks,
+        posts:        e.posts        + 1,
+        interactions: e.interactions + c.metrics.interactions,
       })
     }
     return new Map([...map.entries()].map(([p, v]) => [p, {
       ...v,
-      eqr: v.impressions > 0 ? (v.we / v.impressions) * 100 : 0,
+      // EQR = weighted engagement index (Σwe / Σimpressions × 100) — can exceed 100
+      eqr:     v.impressions > 0 ? (v.we           / v.impressions) * 100 : 0,
+      // Raw rate = plain Σinteractions / Σimpressions × 100 — the unweighted baseline
+      rawRate: v.impressions > 0 ? (v.interactions / v.impressions) * 100 : 0,
     }]))
   }, [lang, period])
 }
@@ -79,10 +83,11 @@ function getMetricValue(
 // ─── Platform bar row ─────────────────────────────────────────────────────────
 
 function PlatformBar({
-  platform, value, prevValue, maxValue, posts, prevPosts = 0, isPartial = false, onClick,
+  platform, value, prevValue, maxValue, posts, prevPosts = 0, isPartial = false, onClick, rawRate,
 }: {
   platform: Platform; value: number; prevValue?: number; maxValue: number
   posts: number; prevPosts?: number; isPartial?: boolean; onClick?: () => void
+  rawRate?: number   // when provided (Quality metric), replaces the per-post secondary line
 }) {
   const [hovered, setHovered] = useState(false)
   const pct       = maxValue > 0 ? (value / maxValue) * 100 : 0
@@ -121,17 +126,27 @@ function PlatformBar({
         <div style={{ height: 10, borderRadius: 'var(--radius-bar)', overflow: 'hidden', backgroundColor: 'var(--color-border)', marginBottom: 10 }}>
           <div style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: 'var(--radius-bar)' }} />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {rawRate !== undefined ? (
+          /* Quality metric: show plain interaction rate as the honest baseline */
           <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)' }}>
             <span style={{ fontVariantNumeric: 'tabular-nums lining-nums', fontWeight: 500, color: 'var(--color-ink)' }}>
-              {formatCompact(Math.round(perPost))}
+              {rawRate.toFixed(1)}%
             </span>
-            {' '}per post
+            {' '}raw interaction rate
           </span>
-          {prevPerPost !== undefined && prevPerPost > 0 && (
-            <div style={{ display: 'flex' }}><Chip current={perPost} previous={prevPerPost} polarity="good-up" /></div>
-          )}
-        </div>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)' }}>
+              <span style={{ fontVariantNumeric: 'tabular-nums lining-nums', fontWeight: 500, color: 'var(--color-ink)' }}>
+                {formatCompact(Math.round(perPost))}
+              </span>
+              {' '}per post
+            </span>
+            {prevPerPost !== undefined && prevPerPost > 0 && (
+              <div style={{ display: 'flex' }}><Chip current={perPost} previous={prevPerPost} polarity="good-up" /></div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right: total + delta */}
@@ -174,6 +189,7 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
           }, metric) : undefined,
           posts:     agg.posts,
           prevPosts: prev?.posts ?? 0,
+          rawRate:   agg.rawRate,  // Σinteractions ÷ Σimpressions × 100
         }
       })
       .sort((a, b) => b.value - a.value)
@@ -204,6 +220,9 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
             {metricTip.name}
           </span>
         </Tooltip>
+        {metric === 'eqr' && (
+          <HonestyLabel>index · can exceed 100</HonestyLabel>
+        )}
         {metric === 'siteClicks' && (
           <>
             <Tooltip tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />}>
@@ -216,7 +235,7 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
         )}
       </div>
 
-      {sortedByMetric.map(({ platform, value, prevValue, posts, prevPosts }) => (
+      {sortedByMetric.map(({ platform, value, prevValue, posts, prevPosts, rawRate }) => (
         <PlatformBar
           key={platform}
           platform={platform}
@@ -225,6 +244,7 @@ function PerformanceTab({ period, onSelectPlatform }: { period: string; onSelect
           maxValue={maxValue}
           posts={posts}
           prevPosts={prevPosts}
+          rawRate={metric === 'eqr' ? rawRate : undefined}
           onClick={() => onSelectPlatform(platform)}
         />
       ))}
