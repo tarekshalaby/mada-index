@@ -247,15 +247,29 @@ function TeamScatterChart({
   rows:     ContribRow[]
   onSelect: (c: Contributor) => void
 }) {
-  const { points, medianX, medianY } = useMemo(() => {
-    if (!rows.length) return { points: [] as BubblePoint[], medianX: 0, medianY: 0 }
+  const { scatterPoints, excludedNames, medianX, medianY, xDomainMax, yDomainMin, yDomainMax } = useMemo(() => {
+    const empty = { scatterPoints: [] as BubblePoint[], excludedNames: [] as string[], medianX: 0, medianY: 0, xDomainMax: 10, yDomainMin: 0, yDomainMax: 100 }
+    if (!rows.length) return empty
 
-    const qualified = rows.filter(r => r.stats.articleCount >= CHART_MIN_SAMPLE)
-    const faded     = rows.filter(r => r.stats.articleCount <  CHART_MIN_SAMPLE)
+    // ── IQR-based outlier exclusion on article count (X axis) ─────────────
+    // Keeps the axis readable when one contributor is orders-of-magnitude
+    // more prolific than the rest (e.g. an editorial/archive account).
+    const sortedByCount = [...rows].sort((a, b) => a.stats.articleCount - b.stats.articleCount)
+    const n             = sortedByCount.length
+    const q1            = sortedByCount[Math.floor(n * 0.25)]?.stats.articleCount ?? 0
+    const q3            = sortedByCount[Math.floor(n * 0.75)]?.stats.articleCount ?? 0
+    const iqr           = q3 - q1
+    const upperFence    = q3 + 1.5 * iqr
 
-    if (!qualified.length) return { points: [] as BubblePoint[], medianX: 0, medianY: 0 }
+    const inBounds      = rows.filter(r => r.stats.articleCount <= upperFence)
+    const excluded      = rows.filter(r => r.stats.articleCount > upperFence)
 
-    const allImp = rows.map(r => r.stats.impressions)
+    const qualified = inBounds.filter(r => r.stats.articleCount >= CHART_MIN_SAMPLE)
+    const faded     = inBounds.filter(r => r.stats.articleCount <  CHART_MIN_SAMPLE)
+
+    if (!qualified.length) return { ...empty, excludedNames: excluded.map(r => r.contributor.name) }
+
+    const allImp = inBounds.map(r => r.stats.impressions)
     const minImp = Math.min(...allImp)
     const maxImp = Math.max(...allImp)
 
@@ -263,7 +277,6 @@ function TeamScatterChart({
     const medY = medianOf(qualified.map(r => r.stats.avgEqr))
 
     // ── Pick which dots get direct name labels ────────────────────────────
-    // Top extreme in each quadrant + top 2 by reach. Deduped.
     const maxX = Math.max(...qualified.map(r => r.stats.articleCount))
     const maxY = Math.max(...qualified.map(r => r.stats.avgEqr))
 
@@ -288,15 +301,12 @@ function TeamScatterChart({
 
     // ── Build data points ─────────────────────────────────────────────────
     function makePoint(r: ContribRow, isFaded: boolean): BubblePoint {
-      const xRaw       = r.stats.articleCount
-      const eqr        = r.stats.avgEqr
-      const jX         = stableJitter(r.contributor.id + 'x', 0.35)
-      const jY         = stableJitter(r.contributor.id + 'y', 1.0)
-      const rad        = isFaded
-        ? BUBBLE_FADED_R
-        : logRadius(r.stats.impressions, minImp, maxImp)
-      const isLabeled  = !isFaded && labeled.has(r.contributor.id)
-      const rightSide  = xRaw > medX
+      const xRaw      = r.stats.articleCount
+      const eqr       = r.stats.avgEqr
+      const jX        = stableJitter(r.contributor.id + 'x', 0.35)
+      const jY        = stableJitter(r.contributor.id + 'y', 1.0)
+      const rad       = isFaded ? BUBBLE_FADED_R : logRadius(r.stats.impressions, minImp, maxImp)
+      const isLab     = !isFaded && labeled.has(r.contributor.id)
 
       return {
         x:           xRaw + jX,
@@ -312,24 +322,34 @@ function TeamScatterChart({
         articleCount: xRaw,
         radius:      rad,
         isFaded,
-        isLabeled,
-        labelAnchor: rightSide ? 'start' : 'end',
+        isLabeled:   isLab,
+        labelAnchor: xRaw > medX ? 'start' : 'end',
       }
     }
 
+    const allPoints = [
+      ...qualified.map(r => makePoint(r, false)),
+      ...faded.map(r => makePoint(r, true)),
+    ]
+
+    // Pre-compute axis domains from actual data so the Y-axis always shows
+    // clean EQR values — no Recharts domain-function guessing.
+    const yVals = allPoints.map(p => p.y)
+    const xVals = allPoints.map(p => p.x)
+
     return {
-      points: [
-        ...qualified.map(r => makePoint(r, false)),
-        ...faded.map(r => makePoint(r, true)),
-      ],
-      medianX: medX,
-      medianY: medY,
+      scatterPoints: allPoints,
+      excludedNames: excluded.map(r => r.contributor.name),
+      medianX:       medX,
+      medianY:       medY,
+      xDomainMax:    Math.ceil(Math.max(...xVals)) + 1,
+      yDomainMin:    Math.max(0, Math.floor(Math.min(...yVals) * 0.88)),
+      yDomainMax:    Math.ceil(Math.max(...yVals) * 1.10),
     }
   }, [rows])
 
-  // Quadrant label overlay — captured inside useCallback so medianX/Y are stable.
+  // Quadrant label overlay — useCallback captures medianX/Y in closure.
   const QuadrantLabels = useCallback((props: any) => {
-    // xAxisMap may be keyed by number or string depending on Recharts version
     const xAxisArr = props.xAxisMap ? Object.values(props.xAxisMap) : []
     const yAxisArr = props.yAxisMap ? Object.values(props.yAxisMap) : []
     const xScale   = (xAxisArr[0] as any)?.scale
@@ -356,7 +376,7 @@ function TeamScatterChart({
 
   const axTick = { fontFamily: 'var(--font-ui)', fontSize: 11, fill: 'var(--color-fainter)' } as const
 
-  if (points.length < 2) return null
+  if (scatterPoints.length < 2) return null
 
   return (
     <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)', padding: '18px 20px', backgroundColor: 'var(--color-raised)', marginBottom: 16 }}>
@@ -367,24 +387,17 @@ function TeamScatterChart({
         X = articles published · Y = quality rate (ΣWE ÷ ΣImpressions × 100) · bubble size = impressions · dashed lines = team median
       </div>
 
-      <ResponsiveContainer width="100%" height={420}>
-        <ScatterChart
-          margin={{ top: 12, right: 130, bottom: 36, left: 8 }}
-          onClick={(chartData: any) => {
-            const id = chartData?.activePayload?.[0]?.payload?.id
-            if (!id) return
-            const row = rows.find(r => r.contributor.id === id)
-            if (row) onSelect(row.contributor)
-          }}
-        >
+      <ResponsiveContainer width="100%" height={550}>
+        <ScatterChart margin={{ top: 12, right: 130, bottom: 36, left: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
 
           <XAxis
             dataKey="x"
             type="number"
             name="Articles"
-            domain={[0, (max: number) => Math.ceil(max) + 1]}
+            domain={[0, xDomainMax]}
             allowDecimals={false}
+            tickFormatter={(v: number) => String(Math.round(v))}
             tick={axTick}
             axisLine={false}
             tickLine={false}
@@ -400,10 +413,9 @@ function TeamScatterChart({
             dataKey="y"
             type="number"
             name="Quality Rate"
-            domain={[
-              (min: number) => Math.max(0, Math.floor(min * 0.85)),
-              (max: number) => Math.ceil(max * 1.12),
-            ]}
+            domain={[yDomainMin, yDomainMax]}
+            tickCount={6}
+            tickFormatter={(v: number) => String(Math.round(v))}
             tick={axTick}
             axisLine={false}
             tickLine={false}
@@ -418,18 +430,8 @@ function TeamScatterChart({
           />
 
           {/* Median crosshairs — neutral ink, no benchmark colour */}
-          <ReferenceLine
-            x={medianX}
-            stroke="var(--color-ink)"
-            strokeOpacity={0.15}
-            strokeDasharray="5 4"
-          />
-          <ReferenceLine
-            y={medianY}
-            stroke="var(--color-ink)"
-            strokeOpacity={0.15}
-            strokeDasharray="5 4"
-          />
+          <ReferenceLine x={medianX} stroke="var(--color-ink)" strokeOpacity={0.15} strokeDasharray="5 4" />
+          <ReferenceLine y={medianY} stroke="var(--color-ink)" strokeOpacity={0.15} strokeDasharray="5 4" />
 
           {/* Quadrant corner labels */}
           <Customized component={QuadrantLabels} />
@@ -439,16 +441,25 @@ function TeamScatterChart({
             cursor={{ strokeDasharray: '3 3', stroke: 'var(--color-border-strong)' }}
           />
 
+          {/* Click on the Scatter element — receives the data object directly */}
           <Scatter
-            data={points}
+            data={scatterPoints}
             shape={<BubbleShape />}
             isAnimationActive={false}
+            onClick={(point: any) => {
+              if (!point?.id) return
+              const row = rows.find(r => r.contributor.id === point.id)
+              if (row) onSelect(row.contributor)
+            }}
           />
         </ScatterChart>
       </ResponsiveContainer>
 
       <div style={{ marginTop: 6, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
-        Small faded dots = fewer than {CHART_MIN_SAMPLE} articles this period · not labeled · included to show presence · click any dot to view profile
+        Small faded dots = fewer than {CHART_MIN_SAMPLE} articles this period · click any dot to view profile
+        {excludedNames.length > 0 && (
+          <> · <span>{excludedNames.join(', ')} not shown (article count far exceeds range)</span></>
+        )}
       </div>
     </div>
   )
@@ -678,10 +689,7 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
         </div>
       ) : (
         <>
-          {/* ── 1. Scatter: Productivity vs. Performance ─────────────────── */}
-          <TeamScatterChart rows={sorted} onSelect={setSelected} />
-
-          {/* ── 2. Team output trend ─────────────────────────────────────── */}
+          {/* ── 1. Team output trend ─────────────────────────────────────── */}
           <div style={chartCard}>
             <div style={chartTitle}>Team output</div>
             <div style={chartSub}>Total articles published per month across the team</div>
@@ -712,6 +720,9 @@ export function ContributorsView({ period = 'may-26' }: { period?: string }) {
               </ResponsiveContainer>
             )}
           </div>
+
+          {/* ── 2. Scatter: Productivity vs. Performance ─────────────────── */}
+          <TeamScatterChart rows={sorted} onSelect={setSelected} />
 
           {/* ── 3. Top-10 ranked list — exact figures ─────────────────────── */}
           <div style={chartCard}>
