@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { Eye, ChartBar, Link, Newspaper, CalendarBlank } from '@phosphor-icons/react'
+import { Eye, ChartBar, Newspaper } from '@phosphor-icons/react'
 import { getStories, getStoriesForPeriod, getContentByStory, getContentById, getAllContributors } from '../data/adapter'
 import type { Story, Format, Section, Contributor } from '../data/types'
 import { Tag }              from '../components/Tag'
@@ -16,28 +16,18 @@ import { PercentileBadge }  from '../components/PercentileBadge'
 import { StoryDetail }      from './StoryDetail'
 import { ContentDetail }    from './ContentDetail'
 
-type SortMetric = 'we' | 'impressions' | 'site-clicks' | 'date'
+type SortMetric = 'we' | 'impressions'
 
 const SORT_OPTIONS = [
-  {
-    value: 'date'         as SortMetric,
-    label: 'Date',
-    icon:  <CalendarBlank weight="fill" size={13} />,
-  },
-  {
-    value: 'we'           as SortMetric,
-    label: 'Weighted Engagement',
-    icon:  <ChartBar weight="fill" size={13} />,
-  },
   {
     value: 'impressions'  as SortMetric,
     label: 'Impressions',
     icon:  <Eye weight="fill" size={13} />,
   },
   {
-    value: 'site-clicks'  as SortMetric,
-    label: 'Site Clicks',
-    icon:  <Link weight="fill" size={13} />,
+    value: 'we'           as SortMetric,
+    label: 'Weighted Engagement',
+    icon:  <ChartBar weight="fill" size={13} />,
   },
 ]
 
@@ -78,23 +68,10 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
     return [...seen.values()]
   }, [story.id])
 
-  const { metricValue, metricLabel, metricInfo } = useMemo(() => {
-    if (sortBy === 'we') return {
-      metricValue: formatCompact(story.rollup.weightedEngagement),
-      metricLabel: 'Weighted Engagement',
-      metricInfo:  METRIC_INFO.weighted_engagement,
-    }
-    if (sortBy === 'impressions') return {
-      metricValue: formatCompact(story.rollup.impressions),
-      metricLabel: 'Impressions',
-      metricInfo:  METRIC_INFO.impressions,
-    }
-    return {
-      metricValue: formatCompact(story.rollup.siteClicks),
-      metricLabel: 'Site Clicks',
-      metricInfo:  METRIC_INFO.site_clicks,
-    }
-  }, [sortBy, story.rollup])
+  const { metricValue, metricLabel, metricInfo } = useMemo(() => sortBy === 'we'
+    ? { metricValue: formatCompact(story.rollup.weightedEngagement), metricLabel: 'Weighted Engagement', metricInfo: METRIC_INFO.weighted_engagement }
+    : { metricValue: formatCompact(story.rollup.impressions),        metricLabel: 'Impressions',         metricInfo: METRIC_INFO.impressions        }
+  , [sortBy, story.rollup])
 
   return (
     <div
@@ -241,34 +218,22 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
           {metricValue}
         </div>
 
-        {/* Label + badge: sit naturally next to each other, no spreading */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
-            <span style={{
-              fontFamily:   'var(--font-ui)',
-              fontSize:     'var(--text-caption)',
-              color:        'var(--color-faint)',
-              cursor:       'help',
-              borderBottom: '1px dotted var(--color-border-strong)',
-              whiteSpace:   'nowrap',
-            }}>
-              {metricLabel}
-            </span>
-          </Tooltip>
-          {pctl !== undefined && <PercentileBadge percentile={pctl} />}
-        </div>
-
-        {/* Secondary: impressions when sorted by site-clicks or date */}
-        {(sortBy === 'site-clicks' || sortBy === 'date') && (
-          <div style={{
-            fontFamily:         'var(--font-ui)',
-            fontSize:           'var(--text-caption)',
-            color:              'var(--color-fainter)',
-            fontVariantNumeric: 'tabular-nums lining-nums',
+        {/* Line 2: metric label */}
+        <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
+          <span style={{
+            fontFamily:   'var(--font-ui)',
+            fontSize:     'var(--text-caption)',
+            color:        'var(--color-faint)',
+            cursor:       'help',
+            borderBottom: '1px dotted var(--color-border-strong)',
+            whiteSpace:   'nowrap',
           }}>
-            {formatCompact(story.rollup.impressions)} impressions
-          </div>
-        )}
+            {metricLabel}
+          </span>
+        </Tooltip>
+
+        {/* Line 3: percentile badge */}
+        {pctl !== undefined && <PercentileBadge percentile={pctl} />}
       </div>
     </div>
   )
@@ -337,13 +302,11 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
 
   // Sort, then filter
   const sorted = useMemo(() => {
-    return [...allStories].sort((a, b) => {
-      if (sortBy === 'we')          return b.rollup.weightedEngagement - a.rollup.weightedEngagement
-      if (sortBy === 'impressions') return b.rollup.impressions        - a.rollup.impressions
-      if (sortBy === 'site-clicks') return b.rollup.siteClicks        - a.rollup.siteClicks
-      // date: most recent first
-      return b.publishedFirst.localeCompare(a.publishedFirst)
-    })
+    return [...allStories].sort((a, b) =>
+      sortBy === 'we'
+        ? b.rollup.weightedEngagement - a.rollup.weightedEngagement
+        : b.rollup.impressions        - a.rollup.impressions
+    )
   }, [allStories, sortBy])
 
   const filtered = useMemo(() => {
@@ -390,11 +353,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
 
   // Per-row quality percentiles — computed once for the full filtered list
   const percentileMap = useMemo(() => {
-    if (sortBy === 'date') return new Map<string, number>()
-    const getVal = (s: Story) =>
-      sortBy === 'impressions' ? s.rollup.impressions :
-      sortBy === 'we'          ? s.rollup.weightedEngagement :
-                                 s.rollup.siteClicks
+    const getVal = (s: Story) => sortBy === 'we' ? s.rollup.weightedEngagement : s.rollup.impressions
     const vals = filtered.map(getVal)
     const map  = new Map<string, number>()
     for (const s of filtered) map.set(s.id, computePercentileRank(getVal(s), vals))
@@ -499,7 +458,7 @@ export function StoriesView({ period, initialStoryId, onBack }: StoriesViewProps
       {/* Column header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, marginBottom: 0, borderBottom: '2px solid var(--color-border)', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
         <span>{filtered.length} {filtered.length === 1 ? 'story' : 'stories'}{hasFilter && ` · filtered`}</span>
-        <span>Sorted by {sortBy === 'impressions' ? 'Impressions' : sortBy === 'we' ? 'Weighted Engagement' : sortBy === 'date' ? 'Most recent' : 'Site Clicks'}</span>
+        <span>Sorted by {sortBy === 'we' ? 'Weighted Engagement' : 'Impressions'}</span>
       </div>
 
       {/* Story rows — or empty state */}
