@@ -6,24 +6,35 @@ import { Tag }              from '../components/Tag'
 import { EmptyState }       from '../components/EmptyState'
 import { FilterDropdown }   from '../components/FilterDropdown'
 import { PlatformBadge, PLATFORM_CONFIG, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
-import { PercentileBadge }  from '../components/PercentileBadge'
 import { Tooltip, MetricTip } from '../components/Tooltip'
 import { METRIC_INFO, FORMAT_LABELS, CONTENT_TYPE_LABELS, formatDateShort } from '../lib/labels'
 import { formatCompact, computePercentileRank } from '../lib/metrics'
 import { ContentDetail }    from './ContentDetail'
 
-type SortCol = 'published' | 'impressions' | 'engagement' | 'eqr' | 'siteClicks' | 'exposure' | 'quality'
+type SortCol = 'published' | 'impressions' | 'engagement' | 'siteClicks'
 type SortDir = 'desc' | 'asc'
 
-const GRID = '60px 1fr 76px 82px 82px 68px 76px 68px 68px'
+// Columns: thumbnail · content · date · impressions · weighted engagement · site clicks
+const GRID = '60px 1fr 72px 110px 148px 80px'
+
+// Minimum peers of the same Type for a percentile bar to be meaningful
+const MIN_PEERS = 4
+
+// 5-colour quintile scale — top→bottom green/lime/amber/orange/red
+function quintileColor(pctl: number): string {
+  return pctl >= 80 ? '#22C55E'
+    : pctl >= 60   ? '#84CC16'
+    : pctl >= 40   ? '#F59E0B'
+    : pctl >= 20   ? '#F97316'
+    :                '#EF4444'
+}
 
 interface EnrichedContent extends Content {
-  exposurePercentile: number
-  qualityPercentile:  number
+  exposurePercentile: number | undefined  // undefined when < MIN_PEERS type peers
+  qualityPercentile:  number | undefined  // EQR percentile, same suppression
   contributors:       Contributor[]
 }
 
-// Custom hook — all hook calls must happen at the same level every render
 function useEnrichedContent(period?: string): EnrichedContent[] {
   return useMemo(() => {
     const all         = getPeriodContent(period ?? 'may-26')
@@ -36,15 +47,21 @@ function useEnrichedContent(period?: string): EnrichedContent[] {
       impressionsByType[c.type]!.push(c.metrics.impressions)
       eqrByType[c.type]!.push(c.metrics.engagementQualityRate)
     }
-    return all.map(c => ({
-      ...c,
-      exposurePercentile: computePercentileRank(c.metrics.impressions,           impressionsByType[c.type] ?? []),
-      qualityPercentile:  computePercentileRank(c.metrics.engagementQualityRate, eqrByType[c.type]         ?? []),
-      contributors:       c.authorIds
-        ? (c.authorIds.map(id => allContribs.find(x => x.id === id)).filter(Boolean) as Contributor[])
-        : [],
-    }))
-  }, [period])  // re-run whenever period changes
+    return all.map(c => {
+      const impPeers = impressionsByType[c.type] ?? []
+      const eqrPeers = eqrByType[c.type]         ?? []
+      return {
+        ...c,
+        exposurePercentile: impPeers.length >= MIN_PEERS
+          ? computePercentileRank(c.metrics.impressions, impPeers) : undefined,
+        qualityPercentile: eqrPeers.length >= MIN_PEERS
+          ? computePercentileRank(c.metrics.engagementQualityRate, eqrPeers) : undefined,
+        contributors: c.authorIds
+          ? (c.authorIds.map(id => allContribs.find(x => x.id === id)).filter(Boolean) as Contributor[])
+          : [],
+      }
+    })
+  }, [period])
 }
 
 // ─── Sortable column header ────────────────────────────────────────────────────
@@ -76,23 +93,33 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
   const { Icon } = PLATFORM_CONFIG[item.platform]
   const typeLabel = item.format ? FORMAT_LABELS[item.format] : CONTENT_TYPE_LABELS[item.type]
 
+  // Small inline percentile bar for table cells
+  function PctBar({ pctl }: { pctl?: number }) {
+    if (pctl === undefined) return null
+    return (
+      <div style={{ width: 2, height: 14, borderRadius: 1, backgroundColor: quintileColor(pctl), opacity: 0.85, flexShrink: 0 }} />
+    )
+  }
+
   return (
     <div
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onSelect}
-      style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '10px 12px', borderBottom: '1px solid var(--color-border)', backgroundColor: hovered ? 'rgba(36,31,24,0.04)' : 'transparent', cursor: 'pointer', transition: 'background-color 120ms ease' }}
+      style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '13px 12px', borderBottom: '1px solid var(--color-border)', backgroundColor: hovered ? 'rgba(36,31,24,0.04)' : 'transparent', cursor: 'pointer', transition: 'background-color 120ms ease' }}
     >
-      <div style={{ width: 60, height: 44, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
+      {/* Thumbnail — 60×60 square */}
+      <div style={{ width: 60, height: 60, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
         {item.thumbnailUrl
           ? <img src={item.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={16} color="var(--color-fainter)" /></div>
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={20} color="var(--color-fainter)" /></div>
         }
         <span style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: PLATFORM_CONFIG[item.platform].color, borderRadius: 2, width: 12, height: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon weight="fill" size={8} color="white" />
         </span>
       </div>
 
+      {/* Title + meta */}
       <div style={{ minWidth: 0 }}>
         <div dir="auto" style={{ fontFamily: 'var(--font-display)', fontSize: isArabic ? 15 : 'var(--text-title-row)', fontWeight: isArabic ? 600 : 500, lineHeight: isArabic ? 1.5 : 1.35, color: 'var(--color-ink)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis', marginBottom: 3 }}>
           {item.title}
@@ -116,13 +143,36 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
         </div>
       </div>
 
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', textAlign: 'right', whiteSpace: 'nowrap' }}>{formatDateShort(item.publishedAt)}</div>
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>{formatCompact(m.impressions)}</div>
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>{formatCompact(m.weightedEngagement)}</div>
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>{m.engagementQualityRate.toFixed(1)}</div>
-      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>{formatCompact(m.siteClicks)}</div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}><PercentileBadge percentile={item.exposurePercentile} /></div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}><PercentileBadge percentile={item.qualityPercentile} /></div>
+      {/* Date */}
+      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', textAlign: 'right', whiteSpace: 'nowrap' }}>
+        {formatDateShort(item.publishedAt)}
+      </div>
+
+      {/* Impressions — bar encodes exposure percentile (within-Type) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
+        <PctBar pctl={item.exposurePercentile} />
+        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+          {formatCompact(m.impressions)}
+        </span>
+      </div>
+
+      {/* Weighted Engagement — bar encodes quality (EQR) percentile; raw EQR on hover */}
+      <Tooltip
+        tip={<MetricTip name="Engagement Quality" description={`Raw quality index: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged relative to reach (Weighted Engagement ÷ Impressions × 100).`} />}
+        placement="below"
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
+          <PctBar pctl={item.qualityPercentile} />
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+            {formatCompact(m.weightedEngagement)}
+          </span>
+        </div>
+      </Tooltip>
+
+      {/* Site Clicks */}
+      <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: m.siteClicks > 0 ? 'var(--color-ink)' : 'var(--color-fainter)', fontVariantNumeric: 'tabular-nums lining-nums', textAlign: 'right' }}>
+        {m.siteClicks > 0 ? formatCompact(m.siteClicks) : '—'}
+      </div>
     </div>
   )
 }
@@ -137,19 +187,18 @@ interface ContentViewProps {
 const PAGE_SIZE = 25
 
 export function ContentView({ period, onSelectStory }: ContentViewProps) {
-  // ── ALL hooks must be called before any early return ──────────────────────
   const [activePlatforms, setActivePlatforms] = useState<Set<Platform>>(new Set(JOURNEY_PLATFORM_ORDER))
   const [sortCol,         setSortCol        ] = useState<SortCol>('impressions')
   const [sortDir,         setSortDir        ] = useState<SortDir>('desc')
   const [search,          setSearch         ] = useState('')
   const [filterTopic,     setFilterTopic    ] = useState<string | undefined>()
   const [filterAuthor,    setFilterAuthor   ] = useState<string | undefined>()
+  const [filterLanguage,  setFilterLanguage ] = useState<string | undefined>()
   const [selectedContent, setSelectedContent] = useState<EnrichedContent | null>(null)
   const [page,            setPage           ] = useState(1)
 
   const allContent = useEnrichedContent(period)
 
-  // Filter option lists derived from data
   const topicOptions = useMemo(() =>
     [...new Set(allContent.flatMap(c => c.topics ?? []))]
       .sort()
@@ -168,48 +217,49 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
       }))
   }, [allContent])
 
-  // useMemo BEFORE the early return — hooks must be called in the same order every render
   const filtered = useMemo(() => {
     let items = allContent.filter(c => activePlatforms.has(c.platform))
     if (search.trim()) {
       const q = search.trim().toLowerCase()
       items = items.filter(c => c.title.toLowerCase().includes(q))
     }
-    if (filterTopic)  items = items.filter(c => c.topics?.includes(filterTopic))
-    if (filterAuthor) items = items.filter(c => c.authorIds?.includes(filterAuthor))
+    if (filterTopic)    items = items.filter(c => c.topics?.includes(filterTopic))
+    if (filterAuthor)   items = items.filter(c => c.authorIds?.includes(filterAuthor))
+    if (filterLanguage) items = items.filter(c => c.language === filterLanguage)
     return [...items].sort((a, b) => {
       if (sortCol === 'published') {
         return sortDir === 'desc' ? b.publishedAt.localeCompare(a.publishedAt) : a.publishedAt.localeCompare(b.publishedAt)
       }
       let va = 0, vb = 0
-      if      (sortCol === 'impressions') { va = a.metrics.impressions;           vb = b.metrics.impressions }
-      else if (sortCol === 'engagement')  { va = a.metrics.weightedEngagement;    vb = b.metrics.weightedEngagement }
-      else if (sortCol === 'eqr')         { va = a.metrics.engagementQualityRate; vb = b.metrics.engagementQualityRate }
-      else if (sortCol === 'siteClicks')  { va = a.metrics.siteClicks;            vb = b.metrics.siteClicks }
-      else if (sortCol === 'exposure')    { va = a.exposurePercentile;            vb = b.exposurePercentile }
-      else if (sortCol === 'quality')     { va = a.qualityPercentile;             vb = b.qualityPercentile }
+      if      (sortCol === 'impressions') { va = a.metrics.impressions;        vb = b.metrics.impressions }
+      else if (sortCol === 'engagement')  { va = a.metrics.weightedEngagement; vb = b.metrics.weightedEngagement }
+      else if (sortCol === 'siteClicks')  { va = a.metrics.siteClicks;         vb = b.metrics.siteClicks }
       return sortDir === 'desc' ? vb - va : va - vb
     })
-  }, [allContent, activePlatforms, search, sortCol, sortDir, filterTopic, filterAuthor])
+  }, [allContent, activePlatforms, search, sortCol, sortDir, filterTopic, filterAuthor, filterLanguage])
 
-  // Derived (non-hook) values
-  const allSelected = activePlatforms.size === JOURNEY_PLATFORM_ORDER.length
-  const hasSecondaryFilter = !!(filterTopic || filterAuthor)
-  const totalPages  = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated   = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const allSelected       = activePlatforms.size === JOURNEY_PLATFORM_ORDER.length
+  const hasSecondaryFilter = !!(filterTopic || filterAuthor || filterLanguage)
+  const totalPages        = Math.ceil(filtered.length / PAGE_SIZE)
+  const paginated         = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  // ── Early return AFTER all hooks ──────────────────────────────────────────
+  // typePeers for detail view — items of the same content type in this period
+  const typePeers = useMemo(
+    () => selectedContent ? allContent.filter(c => c.type === selectedContent.type) : [],
+    [allContent, selectedContent]
+  )
+
   if (selectedContent) {
     return (
       <ContentDetail
         item={selectedContent}
+        typePeers={typePeers}
         onBack={() => setSelectedContent(null)}
         onSelectStory={onSelectStory}
       />
     )
   }
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
   function handleSort(col: SortCol) {
     if (col === sortCol) setSortDir(d => d === 'desc' ? 'asc' : 'desc')
     else { setSortCol(col); setSortDir('desc') }
@@ -225,7 +275,6 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
     setPage(1)
   }
 
-  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 28px 56px' }}>
 
@@ -256,8 +305,17 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         </div>
       </div>
 
-      {/* Secondary filters — topic + author */}
+      {/* Secondary filters — language · topic · author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasSecondaryFilter ? 12 : 16, flexWrap: 'wrap' }}>
+        <FilterDropdown
+          label="Language"
+          options={[
+            { value: 'ar', label: 'Arabic' },
+            { value: 'en', label: 'English' },
+          ]}
+          value={filterLanguage}
+          onChange={setFilterLanguage}
+        />
         <FilterDropdown
           label="Topic"
           options={topicOptions}
@@ -274,7 +332,7 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         )}
         {hasSecondaryFilter && (
           <button
-            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined) }}
+            onClick={() => { setFilterTopic(undefined); setFilterAuthor(undefined); setFilterLanguage(undefined) }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', padding: 0, textDecoration: 'underline' }}
           >
             Clear
@@ -284,28 +342,30 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
 
       {/* Table */}
       <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-card)' }}>
+        {/* Header */}
         <div style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, padding: '8px 12px', backgroundColor: 'var(--color-tile)', borderRadius: 'var(--radius-card) var(--radius-card) 0 0', borderBottom: '2px solid var(--color-border)', position: 'relative', zIndex: 5 }}>
           <div />
           <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', fontWeight: 500, color: 'var(--color-fainter)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>Content</div>
-          <ColHeader col="published"   label="Date"        align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-          <ColHeader col="impressions" label="Impressions"  align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
-          <ColHeader col="engagement"  label="Engagement"   align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
-          <ColHeader col="eqr"         label="Quality"      align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.eqr.name} description={METRIC_INFO.eqr.description} />} />
-          <ColHeader col="siteClicks"  label="Site clicks"  align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />} />
-          <ColHeader col="exposure"    label="Reach rank"   align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
-          <ColHeader col="quality"     label="Qual. rank"   align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+          <ColHeader col="published"   label="Date"               align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} />
+          <ColHeader col="impressions" label="Impressions"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.impressions.name} description={METRIC_INFO.impressions.description} />} />
+          <ColHeader col="engagement"  label="Weighted Engagement" align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.weighted_engagement.name} description={METRIC_INFO.weighted_engagement.description} />} />
+          <ColHeader col="siteClicks"  label="Site Clicks"         align="right" sortCol={sortCol} sortDir={sortDir} onSort={handleSort} tip={<MetricTip name={METRIC_INFO.site_clicks.name} description={METRIC_INFO.site_clicks.description} />} />
         </div>
 
         {filtered.length === 0
           ? <EmptyState icon={<Funnel weight="fill" size={28} />} title={search ? `No results for "${search}"` : 'No content matches this filter'} body="Adjust the platform selection or search." padding="40px 24px" />
-          : paginated.map(item => <ContentRow key={item.id} item={item} onSelect={() => setSelectedContent(item)} />)
+          : paginated.map(item => <ContentRow key={item.id} item={item} onSelect={() => { setSelectedContent(item); setPage(1) }} />)
         }
       </div>
 
       {/* Pagination */}
       <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-fainter)' }}>
-          {filtered.length} items{search && ` matching "${search}"`}{filterTopic && ` · topic: ${filterTopic}`}{filterAuthor && ` · author filter active`}
+          {filtered.length} items
+          {search && ` matching "${search}"`}
+          {filterLanguage && ` · ${filterLanguage === 'ar' ? 'Arabic' : 'English'}`}
+          {filterTopic && ` · topic: ${filterTopic}`}
+          {filterAuthor && ` · author filter active`}
           {totalPages > 1 && ` · page ${page} of ${totalPages}`}
         </div>
         {totalPages > 1 && (
@@ -319,15 +379,10 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
             </button>
             {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
               let p: number
-              if (totalPages <= 7) {
-                p = i + 1
-              } else if (page <= 4) {
-                p = i + 1
-              } else if (page >= totalPages - 3) {
-                p = totalPages - 6 + i
-              } else {
-                p = page - 3 + i
-              }
+              if (totalPages <= 7)           p = i + 1
+              else if (page <= 4)            p = i + 1
+              else if (page >= totalPages - 3) p = totalPages - 6 + i
+              else                           p = page - 3 + i
               return (
                 <button
                   key={p}

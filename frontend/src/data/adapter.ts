@@ -324,8 +324,10 @@ export function buildSdkCache(
           // rather than Content.Reactions (a number field written by the sync at an earlier point
           // in time). This ensures the header total always matches the breakdown sum.
           reactions:    fb ? (pNum(fb, 'Total Reactions') ?? sn(r, 'Reactions')) : sn(r, 'Reactions'),
-          comments:     sn(r, 'Comments'),
-          shares:       sn(r, 'Shares'),
+          // For Facebook, prefer the source-of-truth FB record values — the Content table
+          // fields are written once by the sync and can drift if the FB record is refreshed later.
+          comments:     fb ? (pNum(fb, 'Comments') ?? sn(r, 'Comments')) : sn(r, 'Comments'),
+          shares:       fb ? (pNum(fb, 'Shares')   ?? sn(r, 'Shares'))   : sn(r, 'Shares'),
           saves:        sn(r, 'Saves'),
           clicks:       sn(r, 'Clicks'),
           videoViews:   sn(r, 'Video Views'),

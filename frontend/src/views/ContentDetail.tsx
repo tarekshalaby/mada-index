@@ -21,10 +21,20 @@ import { Tag }          from '../components/Tag'
 import { PlatformBadge, PLATFORM_CONFIG, JOURNEY_PLATFORM_ORDER } from '../components/PlatformBadge'
 import { Tooltip, MetricTip } from '../components/Tooltip'
 import { METRIC_INFO, FORMAT_LABELS, SECTION_LABELS, CONTENT_TYPE_LABELS, LANGUAGE_LABELS, formatDateShort } from '../lib/labels'
-import { formatCompact, formatMinutes } from '../lib/metrics'
+import { formatCompact, formatMinutes, computePercentileRank } from '../lib/metrics'
+
+// 5-colour quintile scale — consistent with ContentView and StoryDetail
+function quintileColor(pctl: number): string {
+  return pctl >= 80 ? '#22C55E'
+    : pctl >= 60   ? '#84CC16'
+    : pctl >= 40   ? '#F59E0B'
+    : pctl >= 20   ? '#F97316'
+    :                '#EF4444'
+}
 
 interface ContentDetailProps {
   item:           Content
+  typePeers?:     Content[]   // same-Type items in the same period, for percentile bars
   onBack:         () => void
   onSelectStory?: (id: string) => void
 }
@@ -45,11 +55,11 @@ const PLACEHOLDER_RATIO: Record<ContentType, string> = {
 // ─── Stat block ───────────────────────────────────────────────────────────────
 
 function Stat({
-  label, value, description, tipKey, note, icon,
+  label, value, description, tipKey, note, icon, percentile,
 }: {
   label: string; value: string; description?: string
   tipKey?: keyof typeof METRIC_INFO; note?: string
-  icon?: React.ReactNode
+  icon?: React.ReactNode; percentile?: number
 }) {
   const tip = tipKey ? METRIC_INFO[tipKey] : undefined
   const labelEl = (
@@ -74,17 +84,21 @@ function Stat({
         ? <Tooltip tip={<MetricTip name={tip.name} description={tip.description} />} placement="below">{labelEl}</Tooltip>
         : labelEl
       }
-      <div style={{
-        fontFamily:         'var(--font-display)',
-        fontSize:           'var(--text-display-l)',
-        fontWeight:         600,
-        color:              'var(--color-ink)',
-        fontVariantNumeric: 'tabular-nums lining-nums',
-        lineHeight:         1,
-        letterSpacing:      '-0.01em',
-        marginBottom:       (description || note) ? 4 : 0,
-      }}>
-        {value}
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 8, marginBottom: (description || note) ? 4 : 0 }}>
+        {percentile !== undefined && (
+          <div style={{ width: 3, borderRadius: 2, backgroundColor: quintileColor(percentile), flexShrink: 0, opacity: 0.85 }} />
+        )}
+        <div style={{
+          fontFamily:         'var(--font-display)',
+          fontSize:           'var(--text-display-l)',
+          fontWeight:         600,
+          color:              'var(--color-ink)',
+          fontVariantNumeric: 'tabular-nums lining-nums',
+          lineHeight:         1,
+          letterSpacing:      '-0.01em',
+        }}>
+          {value}
+        </div>
       </div>
       {description && (
         <div style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-faint)', fontStyle: 'italic' }}>
@@ -132,8 +146,25 @@ function RetentionBar({ label, pct }: { label: string; pct: number }) {
 
 // ─── Content detail ───────────────────────────────────────────────────────────
 
-export function ContentDetail({ item, onBack, onSelectStory }: ContentDetailProps) {
+export function ContentDetail({ item, typePeers, onBack, onSelectStory }: ContentDetailProps) {
   const m          = item.metrics
+
+  // Within-Type percentile ranks for the 3 KPI tiles (suppress when < 4 peers)
+  const peerMetrics = useMemo(() => {
+    if (!typePeers || typePeers.length < 4) return null
+    const impVals = typePeers.map(c => c.metrics.impressions)
+    const weVals  = typePeers.map(c => c.metrics.weightedEngagement)
+    const scVals  = typePeers.map(c => c.metrics.siteClicks)
+    const eqVals  = typePeers.map(c => c.metrics.engagementQualityRate)
+    return {
+      impressions: computePercentileRank(m.impressions,            impVals),
+      // WE cell bar encodes quality (EQR) percentile, not WE rank — same pairing as the table
+      weQuality:   computePercentileRank(m.engagementQualityRate,  eqVals),
+      siteClicks:  computePercentileRank(m.siteClicks,             scVals),
+      // Unused here but available if needed
+      we:          computePercentileRank(m.weightedEngagement,     weVals),
+    }
+  }, [item, typePeers])
   const isArticle  = item.type === 'article'
   const isYouTube  = item.type === 'youtube-video'
   const isPodcast  = item.type === 'podcast-episode'
@@ -280,15 +311,22 @@ export function ContentDetail({ item, onBack, onSelectStory }: ContentDetailProp
               label={isArticle ? 'Views' : isNewsletter ? 'Opens' : isPodcast ? 'Streams' : 'Impressions'}
               value={formatCompact(m.impressions)}
               tipKey="impressions"
+              percentile={peerMetrics?.impressions}
             />
 
             {!isPodcast && (
-              <Stat icon={<ChartBar weight="fill" size={12} />} label="Weighted Engagement" value={formatCompact(m.weightedEngagement)} tipKey="weighted_engagement" />
+              <Stat
+                icon={<ChartBar weight="fill" size={12} />}
+                label="Weighted Engagement"
+                value={formatCompact(m.weightedEngagement)}
+                tipKey="weighted_engagement"
+                percentile={peerMetrics?.weQuality}
+              />
             )}
 
             {!isPodcast && (
               <div>
-                <Stat icon={<Gauge weight="fill" size={12} />} label="Quality Rate" value={m.engagementQualityRate.toFixed(1)} tipKey="eqr" />
+                <Stat icon={<Gauge weight="fill" size={12} />} label="Engagement Quality" value={m.engagementQualityRate.toFixed(1)} tipKey="eqr" />
                 {(isArticle || isYouTube) && <HonestyLabel>index · can exceed 100</HonestyLabel>}
               </div>
             )}
@@ -303,7 +341,13 @@ export function ContentDetail({ item, onBack, onSelectStory }: ContentDetailProp
             )}
 
             {m.siteClicks > 0 && (
-              <Stat icon={<ArrowUpRight weight="fill" size={12} />} label="Site Clicks" value={formatCompact(m.siteClicks)} tipKey="site_clicks" />
+              <Stat
+                icon={<ArrowUpRight weight="fill" size={12} />}
+                label="Site Clicks"
+                value={formatCompact(m.siteClicks)}
+                tipKey="site_clicks"
+                percentile={peerMetrics?.siteClicks}
+              />
             )}
 
             {m.saves > 0 && (
