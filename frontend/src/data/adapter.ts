@@ -320,7 +320,10 @@ export function buildSdkCache(
         potentialAudience: undefined,
         metrics: {
           impressions:  sn(r, 'Impressions'),
-          reactions:    sn(r, 'Reactions'),
+          // For Facebook posts, use "Total Reactions" from the FB record (sum of breakdown types)
+          // rather than Content.Reactions (a number field written by the sync at an earlier point
+          // in time). This ensures the header total always matches the breakdown sum.
+          reactions:    fb ? (pNum(fb, 'Total Reactions') ?? sn(r, 'Reactions')) : sn(r, 'Reactions'),
           comments:     sn(r, 'Comments'),
           shares:       sn(r, 'Shares'),
           saves:        sn(r, 'Saves'),
