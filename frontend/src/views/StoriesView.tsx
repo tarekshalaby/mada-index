@@ -228,8 +228,8 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
         </div>
       </div>
 
-      {/* Primary metric — number + label·badge on one compact line */}
-      <div style={{ flexShrink: 0, textAlign: 'right', minWidth: 80 }}>
+      {/* Primary metric — column-flex so rows are only as wide as their content */}
+      <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 5 }}>
         <div style={{
           fontFamily:         'var(--font-display)',
           fontSize:           'var(--text-title-section)',
@@ -237,13 +237,12 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
           color:              'var(--color-ink)',
           fontVariantNumeric: 'tabular-nums lining-nums',
           lineHeight:         1,
-          marginBottom:       6,
         }}>
           {metricValue}
         </div>
 
-        {/* Label + badge on the same line */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+        {/* Label + badge: sit naturally next to each other, no spreading */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <Tooltip tip={<MetricTip name={metricInfo.name} description={metricInfo.description} />}>
             <span style={{
               fontFamily:   'var(--font-ui)',
@@ -251,6 +250,7 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
               color:        'var(--color-faint)',
               cursor:       'help',
               borderBottom: '1px dotted var(--color-border-strong)',
+              whiteSpace:   'nowrap',
             }}>
               {metricLabel}
             </span>
@@ -264,7 +264,6 @@ function StoryRow({ story, sortBy, pctl, onClick }: {
             fontFamily:         'var(--font-ui)',
             fontSize:           'var(--text-caption)',
             color:              'var(--color-fainter)',
-            marginTop:          5,
             fontVariantNumeric: 'tabular-nums lining-nums',
           }}>
             {formatCompact(story.rollup.impressions)} impressions
