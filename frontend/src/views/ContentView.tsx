@@ -15,7 +15,7 @@ type SortCol = 'published' | 'impressions' | 'engagement' | 'siteClicks'
 type SortDir = 'desc' | 'asc'
 
 // Columns: thumbnail · content · date · impressions · weighted engagement · site clicks
-const GRID = '60px 1fr 72px 110px 126px 80px'
+const GRID = '80px 1fr 72px 110px 126px 80px'
 
 // Minimum peers of the same Type for a percentile bar to be meaningful
 const MIN_PEERS = 4
@@ -93,12 +93,10 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
   const { Icon } = PLATFORM_CONFIG[item.platform]
   const typeLabel = item.format ? FORMAT_LABELS[item.format] : CONTENT_TYPE_LABELS[item.type]
 
-  // Small inline percentile bar for table cells
-  function PctBar({ pctl }: { pctl?: number }) {
-    if (pctl === undefined) return null
-    return (
-      <div style={{ width: 2, height: 14, borderRadius: 1, backgroundColor: quintileColor(pctl), opacity: 0.85, flexShrink: 0 }} />
-    )
+  // Underline style for a number span — encodes percentile rank via colour
+  function underlineStyle(pctl?: number) {
+    if (pctl === undefined) return {}
+    return { borderBottom: `2px solid ${quintileColor(pctl)}`, paddingBottom: 2, display: 'inline-block' as const }
   }
 
   return (
@@ -108,11 +106,11 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
       onClick={onSelect}
       style={{ display: 'grid', gridTemplateColumns: GRID, gap: 8, alignItems: 'center', padding: '13px 12px', borderBottom: '1px solid var(--color-border)', backgroundColor: hovered ? 'rgba(36,31,24,0.04)' : 'transparent', cursor: 'pointer', transition: 'background-color 120ms ease' }}
     >
-      {/* Thumbnail — 60×44 (4:3) */}
-      <div style={{ width: 60, height: 44, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
+      {/* Thumbnail — 80×60 (4:3) */}
+      <div style={{ width: 80, height: 60, borderRadius: 6, overflow: 'hidden', flexShrink: 0, border: '1px solid var(--color-border)', backgroundColor: '#F1EAD9', position: 'relative' }}>
         {item.thumbnailUrl
           ? <img src={item.thumbnailUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={20} color="var(--color-fainter)" /></div>
+          : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon weight="fill" size={24} color="var(--color-fainter)" /></div>
         }
         <span style={{ position: 'absolute', bottom: 2, right: 2, backgroundColor: PLATFORM_CONFIG[item.platform].color, borderRadius: 2, width: 12, height: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <Icon weight="fill" size={8} color="white" />
@@ -148,22 +146,20 @@ function ContentRow({ item, onSelect }: { item: EnrichedContent; onSelect: () =>
         {formatDateShort(item.publishedAt)}
       </div>
 
-      {/* Impressions — bar encodes exposure percentile (within-Type) */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
-        <PctBar pctl={item.exposurePercentile} />
-        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+      {/* Impressions — underline colour encodes exposure percentile (within-Type) */}
+      <div style={{ textAlign: 'right' }}>
+        <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.exposurePercentile) }}>
           {formatCompact(m.impressions)}
         </span>
       </div>
 
-      {/* Weighted Engagement — bar encodes quality (EQR) percentile; EQR value on hover */}
+      {/* Weighted Engagement — underline colour encodes quality (EQR) percentile; full detail on hover */}
       <Tooltip
-        tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)}`} />}
+        tip={<MetricTip name="Weighted Engagement" description={`Engagement Quality: ${m.engagementQualityRate.toFixed(1)} — how deeply the audience engaged relative to reach.`} />}
         placement="below"
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 5 }}>
-          <PctBar pctl={item.qualityPercentile} />
-          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
+        <div style={{ textAlign: 'right' }}>
+          <span style={{ fontFamily: 'var(--font-ui)', fontSize: 'var(--text-data)', fontWeight: 500, color: 'var(--color-ink)', fontVariantNumeric: 'tabular-nums lining-nums', ...underlineStyle(item.qualityPercentile) }}>
             {formatCompact(m.weightedEngagement)}
           </span>
         </div>
@@ -305,17 +301,20 @@ export function ContentView({ period, onSelectStory }: ContentViewProps) {
         </div>
       </div>
 
-      {/* Secondary filters — language · topic · author */}
+      {/* Secondary filters — language pills · topic · author */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: hasSecondaryFilter ? 12 : 16, flexWrap: 'wrap' }}>
-        <FilterDropdown
-          label="Language"
-          options={[
-            { value: 'ar', label: 'Arabic' },
-            { value: 'en', label: 'English' },
-          ]}
-          value={filterLanguage}
-          onChange={setFilterLanguage}
-        />
+        {(['ar', 'en'] as const).map(lang => {
+          const isActive = filterLanguage === lang
+          return (
+            <button
+              key={lang}
+              onClick={() => { setFilterLanguage(isActive ? undefined : lang); setPage(1) }}
+              style={{ display: 'inline-flex', alignItems: 'center', height: 32, padding: '0 12px', border: `1px solid ${isActive ? 'var(--color-border-strong)' : 'var(--color-border)'}`, borderRadius: 'var(--radius-pill)', backgroundColor: isActive ? 'var(--color-ink)' : 'var(--color-raised)', cursor: 'pointer', transition: 'all 140ms ease', fontFamily: 'var(--font-ui)', fontSize: 'var(--text-label)', fontWeight: isActive ? 500 : 400, color: isActive ? 'var(--color-paper)' : 'var(--color-fainter)' }}
+            >
+              {lang === 'ar' ? 'Arabic' : 'English'}
+            </button>
+          )
+        })}
         <FilterDropdown
           label="Topic"
           options={topicOptions}
