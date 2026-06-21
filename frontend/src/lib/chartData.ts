@@ -169,6 +169,9 @@ export function getVelocityData(segmentBy: VelocitySegment = 'format', period?: 
   const segmentSet = new Set<string>()
 
   for (const c of content) {
+    // Format mode is article-only: social posts, newsletters, and podcasts
+    // have no editorial format classification and would otherwise appear as "Other"
+    if (segmentBy === 'format' && c.type !== 'article') continue
     const b = bucket(c.publishedAt)
     const seg = segmentBy === 'format'
       ? (c.storyId ? (storyFormat[c.storyId] ?? 'Other') : 'Other')

@@ -7,13 +7,21 @@ import { CalendarBlank, CaretDown, Check } from '@phosphor-icons/react'
 
 export type Period = '7d' | '30d' | '90d' | 'may-26' | 'apr-26' | 'mar-26' | 'q2-26' | 'q1-26' | 'h1-26' | 'year-26'
 
+function rollingPeriodSub(days: number): string {
+  const end   = new Date()
+  const start = new Date(end)
+  start.setDate(end.getDate() - (days - 1))
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return `${fmt(start)} – ${fmt(end)}, ${end.getFullYear()}`
+}
+
 const PERIOD_GROUPS: { heading: string; options: { value: Period; label: string; sub: string }[] }[] = [
   {
     heading: 'Rolling',
     options: [
-      { value: '7d',     label: 'Last 7 days',    sub: 'May 25 – May 31, 2026' },
-      { value: '30d',    label: 'Last 30 days',   sub: 'May 1 – May 31, 2026'  },
-      { value: '90d',    label: 'Last 90 days',   sub: 'Mar 1 – May 31, 2026'  },
+      { value: '7d',     label: 'Last 7 days',    sub: rollingPeriodSub(7)  },
+      { value: '30d',    label: 'Last 30 days',   sub: rollingPeriodSub(30) },
+      { value: '90d',    label: 'Last 90 days',   sub: rollingPeriodSub(90) },
     ],
   },
   {

@@ -283,12 +283,12 @@ function PerformerRow({
           </span>
         </Tooltip>
         {rankBy === 'eqr' ? (
-          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
-            Engagement Quality {story.rollup.eqr != null ? story.rollup.eqr.toFixed(1) : '—'}
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums', whiteSpace: 'nowrap' }}>
+            Quality rate {story.rollup.eqr != null ? story.rollup.eqr.toFixed(1) : '—'}
           </div>
         ) : (
-          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums' }}>
-            Weighted Engagement {formatCompact(story.rollup.weightedEngagement)}
+          <div style={{ marginTop: 4, fontFamily: 'var(--font-ui)', fontSize: 'var(--text-caption)', color: 'var(--color-muted)', fontVariantNumeric: 'tabular-nums lining-nums', whiteSpace: 'nowrap' }}>
+            Engagement {formatCompact(story.rollup.weightedEngagement)}
           </div>
         )}
       </div>
@@ -299,8 +299,8 @@ function PerformerRow({
 // ─── Top performers ───────────────────────────────────────────────────────────
 
 const RANK_OPTIONS = [
-  { value: 'we'  as const, label: 'Weighted Engagement' },
-  { value: 'eqr' as const, label: 'Engagement Quality'  },
+  { value: 'we'  as const, label: 'Engagement' },
+  { value: 'eqr' as const, label: 'Quality'    },
 ]
 
 function TopPerformersCard({ period, onSelectStory }: { period?: string; onSelectStory?: (id: string) => void }) {

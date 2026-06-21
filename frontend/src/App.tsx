@@ -23,7 +23,7 @@ const NAV_ITEMS: { id: Exclude<View, 'reports'>; label: string; icon: ReactNode 
 export default function App() {
   const [activeView,     setActiveView    ] = useState<View>('overview')
   const [pendingStoryId, setPendingStoryId] = useState<string | null>(null)
-  const [period,         setPeriod        ] = useState<Period>('may-26')
+  const [period,         setPeriod        ] = useState<Period>('30d')
   const [dataReady,      setDataReady     ] = useState(false)
   const [dataError,      setDataError     ] = useState<string | null>(null)
   const [loadPct,        setLoadPct       ] = useState(0)

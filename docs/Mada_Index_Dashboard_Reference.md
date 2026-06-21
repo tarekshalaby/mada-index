@@ -295,13 +295,13 @@ type Period = '7d' | '30d' | '90d' |
 
 ## 10. Period filtering — `periodToRange()` and `getPeriodContent()`
 
-`App.tsx` manages a `Period` state string (default `'may-26'`, hardcoded). It is passed as a prop to every view. The adapter converts it to a date range via `periodToRange()`.
+`App.tsx` manages a `Period` state string (default `'30d'` — last 30 days from today). It is passed as a prop to every view. The adapter converts it to a date range via `periodToRange()`.
 
 **Supported period keys:**
 
 | Key | Range |
 |---|---|
-| `'may-26'` | May 2026 (default) |
+| `'may-26'` | May 2026 |
 | `'apr-26'` | April 2026 |
 | `'mar-26'` | March 2026 |
 | `'q1-26'` | Jan–Mar 2026 |
@@ -310,7 +310,7 @@ type Period = '7d' | '30d' | '90d' |
 | `'year-26'` | Full year 2026 |
 | `'7d'` · `'30d'` · `'90d'` | Rolling — anchored to latest `publishedAt` in the cache |
 
-**Adding a new period:** add the key to `Period` type in `DateRangeControl.tsx`, add it to `PERIOD_LABELS` in `HeadlinesView.tsx`, add it to `periodToRange()` in `adapter.ts`, and update the `useState<Period>('may-26')` default in `App.tsx`.
+**Adding a new period:** add the key to `Period` type in `DateRangeControl.tsx`, add it to `PERIOD_LABELS` in `HeadlinesView.tsx`, add it to `periodToRange()` in `adapter.ts`. Rolling periods (`7d`, `30d`, `90d`) always anchor to today and need no changes to `App.tsx`; calendar periods need their date range added to `periodToRange()`.
 
 ---
 
@@ -516,7 +516,7 @@ Commit at the end of every meaningful change set. Never use `git add -A` blindly
 
 **Fonts in extension.** `mada.css` references font files at `/assets/...` absolute paths that don't resolve on Airtable's CDN after release. The dashboard falls back to Georgia / system-ui. This is cosmetic, not functional. Fix: host font files on an external CDN and update `@font-face` URLs, or load display fonts via Google Fonts `<link>` in `frontend/index.tsx`.
 
-**Default period hardcoded.** `App.tsx` initialises `period` state as `'may-26'`. This needs updating monthly (or replaced with auto-detection of the current month). One-line change + `block release`.
+**Default period.** `App.tsx` initialises `period` state as `'30d'` (last 30 days from today). Rolling periods anchor to the current date at page load — no monthly update needed.
 
 **`printReport.ts` out-of-sync risk.** `HeadlinesView.tsx` and `src/lib/printReport.ts` are separate implementations of the same report. Adding a new section to the view requires manually updating `printReport.ts` too.
 

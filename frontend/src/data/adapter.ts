@@ -608,20 +608,17 @@ function periodToRange(period: string): { start: string; end: string } | null {
   if (period === 'h1-26')   return { start: '2026-01-01', end: '2026-06-30' }
   if (period === 'year-26') return { start: '2026-01-01', end: '2026-12-31' }
 
-  const all = _sdkCache?.content ?? SAMPLE_CONTENT
-  if (!all.length) return null
-  const latestDate = all.map(c => c.publishedAt.slice(0, 10)).sort().pop()!
-  const endD = new Date(latestDate + 'T00:00:00Z')
-
   let days = 0
   if (period === '7d')  days = 7
   if (period === '30d') days = 30
   if (period === '90d') days = 90
   if (!days) return null
 
+  const today  = new Date()
+  const endD   = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()))
   const startD = new Date(endD)
   startD.setUTCDate(endD.getUTCDate() - (days - 1))
-  return { start: startD.toISOString().slice(0, 10), end: latestDate }
+  return { start: startD.toISOString().slice(0, 10), end: endD.toISOString().slice(0, 10) }
 }
 
 function prevPeriodRange(period: string): { start: string; end: string } | null {
