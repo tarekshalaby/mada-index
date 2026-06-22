@@ -1,6 +1,6 @@
 # Mada Index — Operations & Maintenance Runbook
 
-**Version 1.0 · June 2026**
+**Version 1.1 · June 2026**
 
 How to keep Mada Index running, diagnose problems, and know when to escalate.
 
@@ -80,7 +80,8 @@ Takes about two minutes. Do this if anyone reports something looks wrong, or as 
 | Instagram Posts | 4-Hourly | Last Run Ended within 6h |
 | Instagram Stories | 4-Hourly | Last Run Ended within 6h |
 | LinkedIn Posts | 4-Hourly | Last Run Ended within 6h |
-| Links Analytics | 4-Hourly | Last Run Ended within 6h; Links table growing |
+| Links Analytics | Daily | Last Run Ended today (08:00 window); Links table growing |
+| Bitly Links Analytics | Daily / Weekly / Monthly | Last Run Ended for each cadence within its expected window; `Last Synced` on Bitly Links rows advancing |
 | MailChimp Emails | Daily | Last Run Ended today |
 | Platform Followers | Weekly | Last Run Ended within 7 days |
 | Scheduler | 4× daily | `Last Run Started` on two of the Sync Settings rows updated at 02/08/14/20 |
@@ -167,9 +168,37 @@ Fix: this data is unrecoverable for the missed Stories. Ensure the Instagram Sto
 
 Cause A — the `bit.ly/m/` Linkin.bio launchpad filter. If the caption contains the Linkin.bio launchpad link (`bit.ly/m/...`) rather than a direct Bitly link, it's excluded from caption-link processing and handled through the Linkin.bio API path instead. Check the actual link in the caption.
 
-Cause B — the Links Analytics worker hasn't processed this post yet. Check `Last Synced` on the Links row (if it exists) or whether the post's Content row has an Outbound Links entry yet.
+Cause B — the Links Analytics worker hasn't processed this post yet. Check `Last Synced` on the Links row (if it exists) or whether the post's Content row has an Outbound Links entry yet. Links Analytics now runs Daily (08:00), not 4-Hourly — allow up to 24h for a newly published post to be picked up.
 
 Cause C — the Bitly link resolves to an external destination (not a madamasr.com article). External links get a Links row with `Destination Type = External` and don't contribute to article-level Site Clicks received.
+
+Cause D — the Bitly link's click count hasn't been refreshed yet. Links Analytics creates the Links row once (at first touch) but doesn't refresh the click count. Click count refresh is done by Bitly Links Analytics (Daily/Weekly/Monthly). If the link was just discovered, wait for the next Bitly Analytics run.
+
+---
+
+**Symptom: A Bitly link's `Total Clicks` appears lower than expected, or seems to decline over time.**
+
+Cause: the Bitly referrer API covers a sliding retention window (observed ~141 days on the current plan). For Bitly links older than that window, `Total Clicks` reflects only the windowed period, not all-time, and drifts downward as the window advances. This is a known limitation (DL-31). Links created within ~141 days of today are unaffected.
+
+Fix: no automated fix. The Bitly Analytics scenario uses descending-sort by creation date to prioritise newer links; old evergreen links will eventually undercount. A potential future fix using `units=-1` (lifetime aggregation) is tracked in DL-31. Document the observed click count for affected links if a snapshot is needed for reporting.
+
+---
+
+**Symptom: MailChimp-tracked link click counts appear lower than Mailchimp's own reporting shows.**
+
+Cause: Links Analytics refreshes MailChimp click counts only for campaigns sent within the last **7 days** (reduced from 150 in June 2026 — see DL-33). Email clicks saturate within ~48h and are frozen by ~7 days, so the narrow window is intentional. For older campaigns, the click count was captured during the campaign's 7-day window and is now frozen.
+
+Fix: expected behaviour. If a specific old campaign's click count must be updated, escalate — the window would need to be temporarily widened in the scenario.
+
+---
+
+**Symptom: Bitly Links Analytics is not running, or `Last Synced` on Bitly Links rows is not advancing.**
+
+Cause A — a Sync Settings row for "Bitly Analytics" is disabled. The scenario has three rows (Daily, Weekly, Monthly) — check all three are enabled.
+
+Cause B — the Bitly API returned an error. Check the Errors table for entries with `Scenario = Bitly Links Analytics`. A `401` or `403` means the Bitly API token is expired or invalid — escalate. A `404` means a specific bitlink key is invalid (the record may be stale).
+
+Cause C — the scenario has not yet been exported and imported into Make. If this is a new installation, the Bitly Links Analytics blueprint does not exist yet — escalate to have the maintainer set it up.
 
 ---
 
@@ -403,4 +432,4 @@ Recurring error types that have appeared before and have known resolutions.
 
 ---
 
-*End of Runbook (v1.0).*
+*End of Runbook (v1.1).*
