@@ -1,6 +1,6 @@
 # Mada Index — Decision Log
 
-**Version 1.1 · Last updated June 2026**
+**Version 1.2 · Last updated June 2026**
 
 An append-only record of the decisions behind Mada Index — *why* things are built the way they are, and the alternatives considered and rejected. Its job is to stop anyone (a future developer, a future you, or an AI assistant) from "fixing" something that was deliberate.
 
@@ -231,6 +231,38 @@ Every entry follows the same shape:
 - **Caveats / lives in:** `PLATFORM_CONFIG` in `PlatformBadge.tsx` (display label); `labels.ts` (`CONTENT_TYPE_LABELS`, `PLATFORM_LABELS`). If the newsletter provider ever changes, update the display label only — the internal type `'newsletter'` should not change.
 - **Status:** Active · 2026-06.
 
+### 10 · Link tracking
+
+> Decisions about the Links table, Bitly click refresh, MailChimp click attribution, and Caption Links ingestion.
+
+#### DL-31 · Dedicated Bitly click-refresh scenario, separate from link discovery
+- **Decision:** Bitly click counts are refreshed by a dedicated **Bitly Links Analytics** scenario (C14) that iterates over existing Links rows. They are not refreshed inside the Links Analytics discovery scenario (C13).
+- **Why:** Links Analytics is post-driven — once a post gets an Outbound Link it exits the discovery filter permanently. That means click counts freeze at first touch. The only way to un-freeze them is a separate, links-driven scenario that repeatedly re-fetches referrers. Mixing click refresh into discovery would require post-driven looping over already-resolved links, which is wasteful and architecturally incorrect.
+- **Rejected:** refreshing clicks inside C13 (adds per-post Make credit consumption to a scenario optimised for set-once writes); a scheduled Airtable automation (insufficient access to the Bitly API without Make as a bridge).
+- **Caveats:** MailChimp click refresh *stays* in C13 because MailChimp's click API is per-campaign — one call returns all of a campaign's links — so campaign-windowing is the correct granularity. t.co and other mirror links resolved via the All-Links route are not tracked separately; their site-click attribution comes through GA4 sessions. Known limitation: Bitly's referrer window is bounded (~141 days); Total Clicks for very old links reflects the window, not all-time.
+- **Status:** Active · 2026-06.
+
+#### DL-32 · Content.Caption Links field, dual-type Discovery filter, and X expanded_url mapping
+- **Decision:** three coordinated changes — (1) add a `Caption Links` multilineText field (`fldWVde2oQXfJX0gb`) to the Content table to store fully-resolved destination URLs from a post's caption; (2) update the Links Analytics discovery filter to admit both Bitly links *and* year-path mirror URLs (the `FIND("/" & YEAR(TODAY()) & "/", ...)` clauses); (3) map `Caption Links` in the X Posts worker from `entities.urls[].expanded_url` on both Create and Update steps.
+- **Why:** X (Twitter) posts use t.co URL shortener and also embed the expanded URL in the tweet's entity metadata. By writing the expanded URL to `Caption Links`, the Links Analytics filter can pick up the mirror URL directly (e.g. `madamasr.com/2026/...`) without any bit.ly involved — matching articles published in the current or previous year. Without this, X post-to-article attribution was entirely absent. The dual-type filter handles both the X (mirror) and FB/LinkedIn (bit.ly) cases at the same entry point.
+- **Rejected:** resolving t.co URLs at query time inside Make (requires additional HTTP calls per post, expensive); a separate discovery branch just for mirror URLs (more complex; duplicates the resolution and linking logic).
+- **Caveats / lives in:** `Content` table (`fldWVde2oQXfJX0gb`, multilineText); X Posts worker (Create Content #18, Update Content #20); Links Analytics `Search Articles with Links` filter formula.
+- **Status:** Active · 2026-06.
+
+#### DL-33 · MailChimp recency window reduced from 150 days to 7 days
+- **Decision:** the `Search for Emails` step in Links Analytics now fetches MailChimp campaigns sent within the last **7 days**, not 150.
+- **Why:** MailChimp email click counts saturate within ~48 hours of a send and are effectively frozen by ~7 days. Running a 150-day window was consuming ~2,460 Make operations per run (6× scenario budget) while refreshing counts that haven't moved. A 7-day window reduces this to ~381 ops/run and covers the only period where the numbers actually change. Credits freed benefit the Bitly Analytics runs.
+- **Rejected:** keeping 150 days (wasteful; the marginal data quality gain after day 7 is nil); 30-day window (still over-fetches frozen data with no benefit).
+- **Caveats:** older campaigns' click counts in the dashboard are now frozen at their last-updated value (captured within the 7-day window around the send date). This is accurate — email click attribution doesn't meaningfully grow after ~7 days. Documented in Runbook §6.
+- **Status:** Active · 2026-06.
+
+#### DL-34 · Links Discovery dispatch changed to Daily-only
+- **Decision:** the Links Analytics Sync Settings rows were reduced to a single **Daily** dispatch (Max Items 20). The Weekly (Max 50) and Monthly (Max 100) rows were removed.
+- **Why:** Links Analytics is post-driven and set-once — a post drops out of the discovery filter permanently as soon as it gets any Outbound Link. There is no reason to re-process the same window with a larger batch; the Weekly and Monthly rows only consumed credits without surfacing new work. Daily at Max 20 covers ~7 newly-linked posts/day with headroom. (Click refresh is now handled by the separate Bitly Analytics scenario with its own tiered cadence — see DL-31.)
+- **Rejected:** keeping tiered rows "for safety" (adds zero value once the post-driven nature is understood); merging Links Analytics and Bitly Analytics into a single scenario (different trigger logic, different cadence needs).
+- **Caveats / lives in:** Sync Settings table — confirm only one active "Links Discovery" row remains.
+- **Status:** Active · 2026-06.
+
 ---
 
-*End of Decision Log (v1.1).*
+*End of Decision Log (v1.2).*
