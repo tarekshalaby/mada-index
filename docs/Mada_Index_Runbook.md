@@ -80,7 +80,7 @@ Takes about two minutes. Do this if anyone reports something looks wrong, or as 
 | Instagram Posts | 4-Hourly | Last Run Ended within 6h |
 | Instagram Stories | 4-Hourly | Last Run Ended within 6h |
 | LinkedIn Posts | 4-Hourly | Last Run Ended within 6h |
-| Links Analytics | Daily | Last Run Ended today (08:00 window); Links table growing |
+| Links Discovery | Daily | Last Run Ended today (08:00 window); Links table growing |
 | Bitly Links Analytics | Daily / Weekly / Monthly | Last Run Ended for each cadence within its expected window; `Last Synced` on Bitly Links rows advancing |
 | MailChimp Emails | Daily | Last Run Ended today |
 | Platform Followers | Weekly | Last Run Ended within 7 days |

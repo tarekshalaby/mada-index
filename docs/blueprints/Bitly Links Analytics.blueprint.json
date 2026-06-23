@@ -1,0 +1,2518 @@
+{
+    "name": "Bitly Links Analytics",
+    "flow": [
+        {
+            "id": 1,
+            "module": "gateway:CustomWebHook",
+            "version": 1,
+            "parameters": {
+                "hook": 2488889,
+                "maxResults": 1
+            },
+            "mapper": {},
+            "metadata": {
+                "designer": {
+                    "x": 0,
+                    "y": 300
+                },
+                "restore": {
+                    "parameters": {
+                        "hook": {
+                            "data": {
+                                "editable": "true"
+                            },
+                            "label": "Bitly Links Analytics"
+                        }
+                    }
+                },
+                "parameters": [
+                    {
+                        "name": "hook",
+                        "type": "hook:gateway-webhook",
+                        "label": "Webhook",
+                        "required": true
+                    },
+                    {
+                        "name": "maxResults",
+                        "type": "number",
+                        "label": "Maximum number of results"
+                    }
+                ]
+            }
+        },
+        {
+            "id": 2,
+            "module": "builtin:BasicRouter",
+            "version": 1,
+            "mapper": null,
+            "metadata": {
+                "designer": {
+                    "x": 300,
+                    "y": 300
+                }
+            },
+            "routes": [
+                {
+                    "flow": [
+                        {
+                            "id": 6,
+                            "module": "airtable:ActionUpdateRecords",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 8833273
+                            },
+                            "filter": {
+                                "name": "Start",
+                                "conditions": []
+                            },
+                            "mapper": {
+                                "id": "{{1.syncRecordId}}",
+                                "base": "appr8MnuDG2NjwMQf",
+                                "table": "tbl8MQn9WDZqUWlHc",
+                                "record": {
+                                    "flds1SSlCRBLH0Upn": "{{now}}"
+                                },
+                                "typecast": false,
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": 0,
+                                    "name": "Update Schedule"
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "label": "Mada Index"
+                                        },
+                                        "table": {
+                                            "label": "Sync Settings"
+                                        },
+                                        "record": {
+                                            "nested": {
+                                                "fldDPBAnlhUYG5SWp": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldHlNvLVO4BzOsgt": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldt0hzv1mDkf5wp0": {
+                                                    "mode": "chose"
+                                                }
+                                            }
+                                        },
+                                        "typecast": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable3"
+                                            },
+                                            "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "typecast",
+                                        "type": "boolean",
+                                        "label": "Smart links",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "Record ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "record",
+                                        "spec": [
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldHlNvLVO4BzOsgt",
+                                                "type": "select",
+                                                "label": "Scenario"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldDPBAnlhUYG5SWp",
+                                                "type": "select",
+                                                "label": "Cadence"
+                                            },
+                                            {
+                                                "name": "fldZeiEMEWYPHww1w",
+                                                "type": "number",
+                                                "label": "Max Items"
+                                            },
+                                            {
+                                                "name": "fld1OkeAjVlibm9EJ",
+                                                "type": "text",
+                                                "label": "Webhook URL"
+                                            },
+                                            {
+                                                "name": "fldt0hzv1mDkf5wp0",
+                                                "type": "boolean",
+                                                "label": "Enabled"
+                                            },
+                                            {
+                                                "name": "flds1SSlCRBLH0Upn",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Last Run Started"
+                                            },
+                                            {
+                                                "name": "fldJs47VLMSzmg1uU",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Last Run Ended"
+                                            },
+                                            {
+                                                "name": "fldTeNG6e7uL4yZcd",
+                                                "type": "number",
+                                                "label": "Last Credits"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Record"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Name",
+                                        "type": "text",
+                                        "label": "Name"
+                                    },
+                                    {
+                                        "name": "Scenario",
+                                        "type": "text",
+                                        "label": "Scenario"
+                                    },
+                                    {
+                                        "name": "Cadence",
+                                        "type": "text",
+                                        "label": "Cadence"
+                                    },
+                                    {
+                                        "name": "Max Items",
+                                        "type": "number",
+                                        "label": "Max Items"
+                                    },
+                                    {
+                                        "name": "Run Scenario",
+                                        "spec": [
+                                            {
+                                                "name": "label",
+                                                "type": "text",
+                                                "label": "Label"
+                                            },
+                                            {
+                                                "name": "url",
+                                                "type": "url",
+                                                "label": "URL"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Run Scenario"
+                                    },
+                                    {
+                                        "name": "Webhook URL",
+                                        "type": "text",
+                                        "label": "Webhook URL"
+                                    },
+                                    {
+                                        "name": "Enabled",
+                                        "type": "boolean",
+                                        "label": "Enabled"
+                                    },
+                                    {
+                                        "name": "Last Run Started",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Run Started"
+                                    },
+                                    {
+                                        "name": "Last Run Ended",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Run Ended"
+                                    },
+                                    {
+                                        "name": "Duration",
+                                        "type": "text",
+                                        "label": "Duration"
+                                    },
+                                    {
+                                        "name": "Last Credits",
+                                        "type": "number",
+                                        "label": "Last Credits"
+                                    },
+                                    {
+                                        "name": "Estimated Monthly",
+                                        "type": "text",
+                                        "label": "Estimated Monthly"
+                                    }
+                                ]
+                            },
+                            "onerror": [
+                                {
+                                    "id": 7,
+                                    "module": "airtable:ActionCreateRecord",
+                                    "version": 3,
+                                    "parameters": {
+                                        "__IMTCONN__": 8833273
+                                    },
+                                    "mapper": {
+                                        "base": "appr8MnuDG2NjwMQf",
+                                        "table": "tblM62NW7VKjzaMlA",
+                                        "record": {
+                                            "fld1JqRebvgnXJL5D": "Google Analytics",
+                                            "fld3LSpNtuP64A9Uc": "{{6.error.detail}}",
+                                            "fld5Yla69XWso4SCO": "{{6.error.message}}",
+                                            "fldO1Tv6rFnMB3QsR": "Airtable - Update Schedule",
+                                            "fldS9LQwxJYkJZXfx": "{{var.scenario.executionUrl}}",
+                                            "fldgB78a0WrkXbWpP": "{{var.scenario.name}}",
+                                            "fldmtTfcw0RbZTsja": "{{6.error.type}}"
+                                        },
+                                        "typecast": false,
+                                        "useColumnId": false
+                                    },
+                                    "metadata": {
+                                        "designer": {
+                                            "x": 900,
+                                            "y": 0,
+                                            "name": "Create Error"
+                                        },
+                                        "restore": {
+                                            "expect": {
+                                                "base": {
+                                                    "label": "Mada Index"
+                                                },
+                                                "table": {
+                                                    "label": "Errors",
+                                                    "nested": [
+                                                        {
+                                                            "name": "record",
+                                                            "spec": [
+                                                                {
+                                                                    "mode": "edit",
+                                                                    "name": "fld1JqRebvgnXJL5D",
+                                                                    "type": "select",
+                                                                    "label": "Channel",
+                                                                    "dynamic": true,
+                                                                    "options": [
+                                                                        {
+                                                                            "label": "Facebook",
+                                                                            "value": "Facebook"
+                                                                        },
+                                                                        {
+                                                                            "label": "Google Analytics",
+                                                                            "value": "Google Analytics"
+                                                                        },
+                                                                        {
+                                                                            "label": "Instagram",
+                                                                            "value": "Instagram"
+                                                                        },
+                                                                        {
+                                                                            "label": "LinkedIn",
+                                                                            "value": "LinkedIn"
+                                                                        },
+                                                                        {
+                                                                            "label": "MailChimp",
+                                                                            "value": "MailChimp"
+                                                                        },
+                                                                        {
+                                                                            "label": "Spotify",
+                                                                            "value": "Spotify"
+                                                                        },
+                                                                        {
+                                                                            "label": "Website",
+                                                                            "value": "Website"
+                                                                        },
+                                                                        {
+                                                                            "label": "X",
+                                                                            "value": "X"
+                                                                        },
+                                                                        {
+                                                                            "label": "YouTube",
+                                                                            "value": "YouTube"
+                                                                        }
+                                                                    ],
+                                                                    "validate": false
+                                                                },
+                                                                {
+                                                                    "name": "fldmtTfcw0RbZTsja",
+                                                                    "type": "text",
+                                                                    "label": "Type"
+                                                                },
+                                                                {
+                                                                    "name": "fld5Yla69XWso4SCO",
+                                                                    "type": "text",
+                                                                    "label": "Message"
+                                                                },
+                                                                {
+                                                                    "name": "fld3LSpNtuP64A9Uc",
+                                                                    "type": "text",
+                                                                    "label": "Detail",
+                                                                    "multiline": true
+                                                                },
+                                                                {
+                                                                    "name": "fldgB78a0WrkXbWpP",
+                                                                    "type": "text",
+                                                                    "label": "Scenario"
+                                                                },
+                                                                {
+                                                                    "name": "fldO1Tv6rFnMB3QsR",
+                                                                    "type": "text",
+                                                                    "label": "Module"
+                                                                },
+                                                                {
+                                                                    "name": "fldS9LQwxJYkJZXfx",
+                                                                    "type": "text",
+                                                                    "label": "Execution"
+                                                                },
+                                                                {
+                                                                    "name": "fldGsZ6ZISLfu6dXa",
+                                                                    "type": "boolean",
+                                                                    "label": "Solved"
+                                                                },
+                                                                {
+                                                                    "name": "flda6zjHkcx9g7sdG",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Facebook Post"
+                                                                },
+                                                                {
+                                                                    "name": "fld4RpTrussaxExSA",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Instagram Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldAUagZg6mqldGTD",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Instagram Story"
+                                                                },
+                                                                {
+                                                                    "name": "fldERTHE5DNTYNONM",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "LinkedIn Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldWyeleX8a7a0uO1",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "X Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldaI9y05mGK6wMX4",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "YouTube Video"
+                                                                },
+                                                                {
+                                                                    "name": "fldsekBMu9jsTOEOB",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "MailChimp Email"
+                                                                },
+                                                                {
+                                                                    "name": "fldPP5kJEEh5fTpfO",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Podcast Episode"
+                                                                },
+                                                                {
+                                                                    "name": "fldpXBf8IRpJvgKRt",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "WordPress Article"
+                                                                }
+                                                            ],
+                                                            "type": "collection",
+                                                            "label": "Record"
+                                                        }
+                                                    ]
+                                                },
+                                                "record": {
+                                                    "nested": {
+                                                        "fld1JqRebvgnXJL5D": {
+                                                            "mode": "chose",
+                                                            "label": "Google Analytics"
+                                                        },
+                                                        "fld4RpTrussaxExSA": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldAUagZg6mqldGTD": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldERTHE5DNTYNONM": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldGsZ6ZISLfu6dXa": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldPP5kJEEh5fTpfO": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldWyeleX8a7a0uO1": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "flda6zjHkcx9g7sdG": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldaI9y05mGK6wMX4": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldpXBf8IRpJvgKRt": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldsekBMu9jsTOEOB": {
+                                                            "mode": "chose"
+                                                        }
+                                                    }
+                                                },
+                                                "typecast": {
+                                                    "mode": "chose"
+                                                },
+                                                "useColumnId": {
+                                                    "mode": "chose"
+                                                }
+                                            },
+                                            "parameters": {
+                                                "__IMTCONN__": {
+                                                    "data": {
+                                                        "scoped": "true",
+                                                        "connection": "airtable3"
+                                                    },
+                                                    "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                                }
+                                            }
+                                        },
+                                        "parameters": [
+                                            {
+                                                "name": "__IMTCONN__",
+                                                "type": "account:airtable3,airtable2",
+                                                "label": "Connection",
+                                                "required": true
+                                            }
+                                        ],
+                                        "expect": [
+                                            {
+                                                "name": "base",
+                                                "type": "select",
+                                                "label": "Base",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "typecast",
+                                                "type": "boolean",
+                                                "label": "Smart links",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "useColumnId",
+                                                "type": "boolean",
+                                                "label": "Use Column ID",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "table",
+                                                "type": "select",
+                                                "label": "Table",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "record",
+                                                "spec": [
+                                                    {
+                                                        "mode": "edit",
+                                                        "name": "fld1JqRebvgnXJL5D",
+                                                        "type": "select",
+                                                        "label": "Channel"
+                                                    },
+                                                    {
+                                                        "name": "fldmtTfcw0RbZTsja",
+                                                        "type": "text",
+                                                        "label": "Type"
+                                                    },
+                                                    {
+                                                        "name": "fld5Yla69XWso4SCO",
+                                                        "type": "text",
+                                                        "label": "Message"
+                                                    },
+                                                    {
+                                                        "name": "fld3LSpNtuP64A9Uc",
+                                                        "type": "text",
+                                                        "label": "Detail"
+                                                    },
+                                                    {
+                                                        "name": "fldgB78a0WrkXbWpP",
+                                                        "type": "text",
+                                                        "label": "Scenario"
+                                                    },
+                                                    {
+                                                        "name": "fldO1Tv6rFnMB3QsR",
+                                                        "type": "text",
+                                                        "label": "Module"
+                                                    },
+                                                    {
+                                                        "name": "fldS9LQwxJYkJZXfx",
+                                                        "type": "text",
+                                                        "label": "Execution"
+                                                    },
+                                                    {
+                                                        "name": "fldGsZ6ZISLfu6dXa",
+                                                        "type": "boolean",
+                                                        "label": "Solved"
+                                                    },
+                                                    {
+                                                        "name": "flda6zjHkcx9g7sdG",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Facebook Post"
+                                                    },
+                                                    {
+                                                        "name": "fld4RpTrussaxExSA",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Instagram Post"
+                                                    },
+                                                    {
+                                                        "name": "fldAUagZg6mqldGTD",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Instagram Story"
+                                                    },
+                                                    {
+                                                        "name": "fldERTHE5DNTYNONM",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "LinkedIn Post"
+                                                    },
+                                                    {
+                                                        "name": "fldWyeleX8a7a0uO1",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "X Post"
+                                                    },
+                                                    {
+                                                        "name": "fldaI9y05mGK6wMX4",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "YouTube Video"
+                                                    },
+                                                    {
+                                                        "name": "fldsekBMu9jsTOEOB",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "MailChimp Email"
+                                                    },
+                                                    {
+                                                        "name": "fldPP5kJEEh5fTpfO",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Podcast Episode"
+                                                    },
+                                                    {
+                                                        "name": "fldpXBf8IRpJvgKRt",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "WordPress Article"
+                                                    }
+                                                ],
+                                                "type": "collection",
+                                                "label": "Record"
+                                            }
+                                        ],
+                                        "interface": [
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "createdTime",
+                                                "type": "date",
+                                                "label": "Created Time"
+                                            },
+                                            {
+                                                "name": "Name",
+                                                "type": "text",
+                                                "label": "Name"
+                                            },
+                                            {
+                                                "name": "Channel",
+                                                "type": "text",
+                                                "label": "Channel"
+                                            },
+                                            {
+                                                "name": "Type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            },
+                                            {
+                                                "name": "Message",
+                                                "type": "text",
+                                                "label": "Message"
+                                            },
+                                            {
+                                                "name": "Detail",
+                                                "type": "text",
+                                                "label": "Detail",
+                                                "multiline": true
+                                            },
+                                            {
+                                                "name": "Scenario",
+                                                "type": "text",
+                                                "label": "Scenario"
+                                            },
+                                            {
+                                                "name": "Module",
+                                                "type": "text",
+                                                "label": "Module"
+                                            },
+                                            {
+                                                "name": "Execution",
+                                                "type": "text",
+                                                "label": "Execution"
+                                            },
+                                            {
+                                                "name": "Solved",
+                                                "type": "boolean",
+                                                "label": "Solved"
+                                            },
+                                            {
+                                                "name": "Facebook Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Facebook Post"
+                                            },
+                                            {
+                                                "name": "Instagram Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Instagram Post"
+                                            },
+                                            {
+                                                "name": "Instagram Story",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Instagram Story"
+                                            },
+                                            {
+                                                "name": "LinkedIn Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "LinkedIn Post"
+                                            },
+                                            {
+                                                "name": "X Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "X Post"
+                                            },
+                                            {
+                                                "name": "YouTube Video",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "YouTube Video"
+                                            },
+                                            {
+                                                "name": "MailChimp Email",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "MailChimp Email"
+                                            },
+                                            {
+                                                "name": "Podcast Episode",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Podcast Episode"
+                                            },
+                                            {
+                                                "name": "WordPress Article",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "WordPress Article"
+                                            },
+                                            {
+                                                "name": "Created",
+                                                "type": "date",
+                                                "label": "Created"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 4,
+                            "module": "airtable:ActionSearchRecords",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 8833273
+                            },
+                            "filter": {
+                                "name": "Analytics",
+                                "conditions": []
+                            },
+                            "mapper": {
+                                "base": "appr8MnuDG2NjwMQf",
+                                "sort": [
+                                    {
+                                        "field": "Created",
+                                        "direction": "desc"
+                                    }
+                                ],
+                                "table": "tblQk4zbxF3kJYJWO",
+                                "formula": "AND({Source} = \"Bitly\", {Key} != \"\")",
+                                "maxRecords": "{{1.maxItems}}",
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": 300,
+                                    "name": "Get Links"
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "mode": "chose",
+                                            "label": "Mada Index"
+                                        },
+                                        "sort": {
+                                            "mode": "chose",
+                                            "items": [
+                                                {
+                                                    "field": {
+                                                        "mode": "chose",
+                                                        "label": "Created"
+                                                    },
+                                                    "direction": {
+                                                        "mode": "chose",
+                                                        "label": "Descending"
+                                                    }
+                                                }
+                                            ]
+                                        },
+                                        "view": {
+                                            "mode": "chose"
+                                        },
+                                        "table": {
+                                            "mode": "chose",
+                                            "label": "Links"
+                                        },
+                                        "fields": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable3"
+                                            },
+                                            "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "formula",
+                                        "type": "text",
+                                        "label": "Formula"
+                                    },
+                                    {
+                                        "name": "maxRecords",
+                                        "type": "integer",
+                                        "label": "Limit"
+                                    },
+                                    {
+                                        "name": "sort",
+                                        "spec": [
+                                            {
+                                                "name": "field",
+                                                "type": "select",
+                                                "label": "Field",
+                                                "dynamic": true,
+                                                "options": []
+                                            },
+                                            {
+                                                "name": "direction",
+                                                "type": "select",
+                                                "label": "Direction",
+                                                "options": [
+                                                    {
+                                                        "label": "Descending",
+                                                        "value": "desc"
+                                                    },
+                                                    {
+                                                        "label": "Ascending",
+                                                        "value": "asc"
+                                                    }
+                                                ]
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Sort"
+                                    },
+                                    {
+                                        "name": "view",
+                                        "type": "select",
+                                        "label": "View"
+                                    },
+                                    {
+                                        "name": "fields",
+                                        "type": "select",
+                                        "label": "Output Fields",
+                                        "multiple": true
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "__IMTLENGTH__",
+                                        "type": "uinteger",
+                                        "label": "Total number of bundles"
+                                    },
+                                    {
+                                        "name": "__IMTINDEX__",
+                                        "type": "uinteger",
+                                        "label": "Bundle order position"
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Name",
+                                        "type": "text",
+                                        "label": "Name"
+                                    },
+                                    {
+                                        "name": "Source",
+                                        "type": "text",
+                                        "label": "Source"
+                                    },
+                                    {
+                                        "name": "Key",
+                                        "type": "text",
+                                        "label": "Key"
+                                    },
+                                    {
+                                        "name": "Short Link",
+                                        "type": "text",
+                                        "label": "Short Link"
+                                    },
+                                    {
+                                        "name": "Long URL",
+                                        "type": "text",
+                                        "label": "Long URL"
+                                    },
+                                    {
+                                        "name": "URL Path",
+                                        "type": "text",
+                                        "label": "URL Path"
+                                    },
+                                    {
+                                        "name": "Destination Type",
+                                        "type": "text",
+                                        "label": "Destination Type"
+                                    },
+                                    {
+                                        "name": "Total Clicks",
+                                        "type": "number",
+                                        "label": "Total Clicks"
+                                    },
+                                    {
+                                        "name": "Clicks: Facebook",
+                                        "type": "number",
+                                        "label": "Clicks: Facebook"
+                                    },
+                                    {
+                                        "name": "Clicks: Instagram",
+                                        "type": "number",
+                                        "label": "Clicks: Instagram"
+                                    },
+                                    {
+                                        "name": "Clicks: X",
+                                        "type": "number",
+                                        "label": "Clicks: X"
+                                    },
+                                    {
+                                        "name": "Clicks: LinkedIn",
+                                        "type": "number",
+                                        "label": "Clicks: LinkedIn"
+                                    },
+                                    {
+                                        "name": "Clicks: YouTube",
+                                        "type": "number",
+                                        "label": "Clicks: YouTube"
+                                    },
+                                    {
+                                        "name": "Clicks: Direct",
+                                        "type": "number",
+                                        "label": "Clicks: Direct"
+                                    },
+                                    {
+                                        "name": "Clicks: Other",
+                                        "type": "number",
+                                        "label": "Clicks: Other"
+                                    },
+                                    {
+                                        "name": "Launchpad ID",
+                                        "type": "text",
+                                        "label": "Launchpad ID"
+                                    },
+                                    {
+                                        "name": "Created",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Created"
+                                    },
+                                    {
+                                        "name": "Modified",
+                                        "type": "date",
+                                        "label": "Modified"
+                                    },
+                                    {
+                                        "name": "Last Synced",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Synced"
+                                    },
+                                    {
+                                        "name": "Origin",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Origin"
+                                    },
+                                    {
+                                        "name": "Origin Story",
+                                        "type": "array",
+                                        "label": "Origin Story"
+                                    },
+                                    {
+                                        "name": "Destination",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Destination"
+                                    },
+                                    {
+                                        "name": "Destination Story",
+                                        "type": "array",
+                                        "label": "Destination Story"
+                                    },
+                                    {
+                                        "name": "Errors",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Errors"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "id": 8,
+                            "module": "bitly:makeAnApiCall",
+                            "version": 2,
+                            "parameters": {
+                                "__IMTCONN__": 9054402
+                            },
+                            "mapper": {
+                                "qs": [
+                                    {
+                                        "key": "unit",
+                                        "value": "day"
+                                    },
+                                    {
+                                        "key": "units",
+                                        "value": "-1"
+                                    }
+                                ],
+                                "url": "/v4/bitlinks/{{4.Key}}/referrers",
+                                "method": "GET",
+                                "headers": [
+                                    {
+                                        "key": "Content-Type",
+                                        "value": "application/json"
+                                    }
+                                ]
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 900,
+                                    "y": 300,
+                                    "name": "Get Referrers"
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "qs": {
+                                            "mode": "chose",
+                                            "items": [
+                                                null,
+                                                null
+                                            ]
+                                        },
+                                        "method": {
+                                            "mode": "chose",
+                                            "label": "GET"
+                                        },
+                                        "headers": {
+                                            "mode": "chose",
+                                            "items": [
+                                                null
+                                            ]
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "bitly2"
+                                            },
+                                            "label": "Shalaby's Bitly connection (madamasr)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:bitly2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "url",
+                                        "type": "text",
+                                        "label": "URL",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "method",
+                                        "type": "select",
+                                        "label": "Method",
+                                        "required": true,
+                                        "validate": {
+                                            "enum": [
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE"
+                                            ]
+                                        }
+                                    },
+                                    {
+                                        "name": "headers",
+                                        "spec": [
+                                            {
+                                                "name": "key",
+                                                "type": "text",
+                                                "label": "Key"
+                                            },
+                                            {
+                                                "name": "value",
+                                                "type": "text",
+                                                "label": "Value"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Headers"
+                                    },
+                                    {
+                                        "name": "qs",
+                                        "spec": [
+                                            {
+                                                "name": "key",
+                                                "type": "text",
+                                                "label": "Key"
+                                            },
+                                            {
+                                                "name": "value",
+                                                "type": "text",
+                                                "label": "Value"
+                                            }
+                                        ],
+                                        "type": "array",
+                                        "label": "Query String"
+                                    },
+                                    {
+                                        "name": "body",
+                                        "type": "any",
+                                        "label": "Body"
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "id": 9,
+                            "module": "airtable:ActionUpdateRecords",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 8833273
+                            },
+                            "mapper": {
+                                "id": "{{4.id}}",
+                                "base": "appr8MnuDG2NjwMQf",
+                                "table": "tblQk4zbxF3kJYJWO",
+                                "record": {
+                                    "fld27efh0rgraNo8r": "{{sum(map(8.body.metrics; \"clicks\"))}}",
+                                    "fld6E4c3BZXxOmHOs": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Facebook\"))}}",
+                                    "fld7C1tt6Sl2rSZBY": "{{now}}",
+                                    "fld8DExQmPAROs7zT": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"X (Formerly Twitter)\"))}}",
+                                    "fldLgLINhpn6UFZ54": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Instagram\")) + sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Bitly Pages\"))}}",
+                                    "fldVFIDO7lN7hJa87": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"direct\"))}}",
+                                    "fldj2daJ6i5FU919e": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"YouTube\"))}}",
+                                    "fldnTzUVq7GDajiZJ": "{{sum(map(8.body.metrics; \"clicks\"; \"value\"; \"LinkedIn\"))}}",
+                                    "flduOYAe0llmAqs7h": "{{sum(map(8.body.metrics; \"clicks\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Facebook\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Instagram\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"Bitly Pages\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"X (Formerly Twitter)\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"LinkedIn\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"YouTube\")) - sum(map(8.body.metrics; \"clicks\"; \"value\"; \"direct\"))}}"
+                                },
+                                "typecast": false,
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 1200,
+                                    "y": 300,
+                                    "name": "Update Link"
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "label": "Mada Index"
+                                        },
+                                        "table": {
+                                            "label": "Links"
+                                        },
+                                        "record": {
+                                            "nested": {
+                                                "fld8VIVFKYgavs9M4": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldUjxoWIkCyRHnZv": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldb4kD6utvJzAnQB": {
+                                                    "mode": "chose"
+                                                },
+                                                "fldlPnDA779plwAgK": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldtp9ZADTBROPQ6f": {
+                                                    "mode": "chose"
+                                                }
+                                            }
+                                        },
+                                        "typecast": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable3"
+                                            },
+                                            "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "typecast",
+                                        "type": "boolean",
+                                        "label": "Smart links",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "Record ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "record",
+                                        "spec": [
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldlPnDA779plwAgK",
+                                                "type": "select",
+                                                "label": "Source"
+                                            },
+                                            {
+                                                "name": "fld6iUaYVVaiiIVxU",
+                                                "type": "text",
+                                                "label": "Key"
+                                            },
+                                            {
+                                                "name": "fldRjh4vvnvpaEmtb",
+                                                "type": "text",
+                                                "label": "Short Link"
+                                            },
+                                            {
+                                                "name": "fldaJ42KBQhQmRoGB",
+                                                "type": "text",
+                                                "label": "Long URL"
+                                            },
+                                            {
+                                                "name": "fld26aNcxUovvm94O",
+                                                "type": "text",
+                                                "label": "URL Path"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldUjxoWIkCyRHnZv",
+                                                "type": "select",
+                                                "label": "Destination Type"
+                                            },
+                                            {
+                                                "name": "fld27efh0rgraNo8r",
+                                                "type": "number",
+                                                "label": "Total Clicks"
+                                            },
+                                            {
+                                                "name": "fld6E4c3BZXxOmHOs",
+                                                "type": "number",
+                                                "label": "Clicks: Facebook"
+                                            },
+                                            {
+                                                "name": "fldLgLINhpn6UFZ54",
+                                                "type": "number",
+                                                "label": "Clicks: Instagram"
+                                            },
+                                            {
+                                                "name": "fld8DExQmPAROs7zT",
+                                                "type": "number",
+                                                "label": "Clicks: X"
+                                            },
+                                            {
+                                                "name": "fldnTzUVq7GDajiZJ",
+                                                "type": "number",
+                                                "label": "Clicks: LinkedIn"
+                                            },
+                                            {
+                                                "name": "fldj2daJ6i5FU919e",
+                                                "type": "number",
+                                                "label": "Clicks: YouTube"
+                                            },
+                                            {
+                                                "name": "fldVFIDO7lN7hJa87",
+                                                "type": "number",
+                                                "label": "Clicks: Direct"
+                                            },
+                                            {
+                                                "name": "flduOYAe0llmAqs7h",
+                                                "type": "number",
+                                                "label": "Clicks: Other"
+                                            },
+                                            {
+                                                "name": "fld7ru1ImDqLjrGO0",
+                                                "type": "text",
+                                                "label": "Launchpad ID"
+                                            },
+                                            {
+                                                "name": "fldBmkDy4CxNSpblB",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Created"
+                                            },
+                                            {
+                                                "name": "fld7C1tt6Sl2rSZBY",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Last Synced"
+                                            },
+                                            {
+                                                "name": "fldtp9ZADTBROPQ6f",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Origin"
+                                            },
+                                            {
+                                                "name": "fld8VIVFKYgavs9M4",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Destination"
+                                            },
+                                            {
+                                                "name": "fldb4kD6utvJzAnQB",
+                                                "spec": {
+                                                    "name": "value",
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Errors"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Record"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Name",
+                                        "type": "text",
+                                        "label": "Name"
+                                    },
+                                    {
+                                        "name": "Source",
+                                        "type": "text",
+                                        "label": "Source"
+                                    },
+                                    {
+                                        "name": "Key",
+                                        "type": "text",
+                                        "label": "Key"
+                                    },
+                                    {
+                                        "name": "Short Link",
+                                        "type": "text",
+                                        "label": "Short Link"
+                                    },
+                                    {
+                                        "name": "Long URL",
+                                        "type": "text",
+                                        "label": "Long URL"
+                                    },
+                                    {
+                                        "name": "URL Path",
+                                        "type": "text",
+                                        "label": "URL Path"
+                                    },
+                                    {
+                                        "name": "Destination Type",
+                                        "type": "text",
+                                        "label": "Destination Type"
+                                    },
+                                    {
+                                        "name": "Total Clicks",
+                                        "type": "number",
+                                        "label": "Total Clicks"
+                                    },
+                                    {
+                                        "name": "Clicks: Facebook",
+                                        "type": "number",
+                                        "label": "Clicks: Facebook"
+                                    },
+                                    {
+                                        "name": "Clicks: Instagram",
+                                        "type": "number",
+                                        "label": "Clicks: Instagram"
+                                    },
+                                    {
+                                        "name": "Clicks: X",
+                                        "type": "number",
+                                        "label": "Clicks: X"
+                                    },
+                                    {
+                                        "name": "Clicks: LinkedIn",
+                                        "type": "number",
+                                        "label": "Clicks: LinkedIn"
+                                    },
+                                    {
+                                        "name": "Clicks: YouTube",
+                                        "type": "number",
+                                        "label": "Clicks: YouTube"
+                                    },
+                                    {
+                                        "name": "Clicks: Direct",
+                                        "type": "number",
+                                        "label": "Clicks: Direct"
+                                    },
+                                    {
+                                        "name": "Clicks: Other",
+                                        "type": "number",
+                                        "label": "Clicks: Other"
+                                    },
+                                    {
+                                        "name": "Launchpad ID",
+                                        "type": "text",
+                                        "label": "Launchpad ID"
+                                    },
+                                    {
+                                        "name": "Created",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Created"
+                                    },
+                                    {
+                                        "name": "Modified",
+                                        "type": "date",
+                                        "label": "Modified"
+                                    },
+                                    {
+                                        "name": "Last Synced",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Synced"
+                                    },
+                                    {
+                                        "name": "Origin",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Origin"
+                                    },
+                                    {
+                                        "name": "Origin Story",
+                                        "type": "array",
+                                        "label": "Origin Story"
+                                    },
+                                    {
+                                        "name": "Destination",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Destination"
+                                    },
+                                    {
+                                        "name": "Destination Story",
+                                        "type": "array",
+                                        "label": "Destination Story"
+                                    },
+                                    {
+                                        "name": "Errors",
+                                        "spec": {
+                                            "label": "Record ID"
+                                        },
+                                        "type": "array",
+                                        "label": "Errors"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "flow": [
+                        {
+                            "id": 10,
+                            "module": "airtable:ActionUpdateRecords",
+                            "version": 3,
+                            "parameters": {
+                                "__IMTCONN__": 8833273
+                            },
+                            "filter": {
+                                "name": "Finish",
+                                "conditions": []
+                            },
+                            "mapper": {
+                                "id": "{{1.syncRecordId}}",
+                                "base": "appr8MnuDG2NjwMQf",
+                                "table": "tbl8MQn9WDZqUWlHc",
+                                "record": {
+                                    "fldJs47VLMSzmg1uU": "{{now}}",
+                                    "fldTeNG6e7uL4yZcd": "{{var.scenario.creditsConsumed}}"
+                                },
+                                "typecast": false,
+                                "useColumnId": false
+                            },
+                            "metadata": {
+                                "designer": {
+                                    "x": 600,
+                                    "y": 600,
+                                    "name": "Update Schedule"
+                                },
+                                "restore": {
+                                    "expect": {
+                                        "base": {
+                                            "label": "Mada Index"
+                                        },
+                                        "table": {
+                                            "label": "Sync Settings"
+                                        },
+                                        "record": {
+                                            "nested": {
+                                                "fldDPBAnlhUYG5SWp": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldHlNvLVO4BzOsgt": {
+                                                    "mode": "edit"
+                                                },
+                                                "fldt0hzv1mDkf5wp0": {
+                                                    "mode": "chose"
+                                                }
+                                            }
+                                        },
+                                        "typecast": {
+                                            "mode": "chose"
+                                        },
+                                        "useColumnId": {
+                                            "mode": "chose"
+                                        }
+                                    },
+                                    "parameters": {
+                                        "__IMTCONN__": {
+                                            "data": {
+                                                "scoped": "true",
+                                                "connection": "airtable3"
+                                            },
+                                            "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                        }
+                                    }
+                                },
+                                "parameters": [
+                                    {
+                                        "name": "__IMTCONN__",
+                                        "type": "account:airtable3,airtable2",
+                                        "label": "Connection",
+                                        "required": true
+                                    }
+                                ],
+                                "expect": [
+                                    {
+                                        "name": "base",
+                                        "type": "select",
+                                        "label": "Base",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "typecast",
+                                        "type": "boolean",
+                                        "label": "Smart links",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "useColumnId",
+                                        "type": "boolean",
+                                        "label": "Use Column ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "table",
+                                        "type": "select",
+                                        "label": "Table",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "Record ID",
+                                        "required": true
+                                    },
+                                    {
+                                        "name": "record",
+                                        "spec": [
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldHlNvLVO4BzOsgt",
+                                                "type": "select",
+                                                "label": "Platform"
+                                            },
+                                            {
+                                                "mode": "edit",
+                                                "name": "fldDPBAnlhUYG5SWp",
+                                                "type": "select",
+                                                "label": "Cadence"
+                                            },
+                                            {
+                                                "name": "fldZeiEMEWYPHww1w",
+                                                "type": "number",
+                                                "label": "Max Items"
+                                            },
+                                            {
+                                                "name": "fld1OkeAjVlibm9EJ",
+                                                "type": "text",
+                                                "label": "Webhook URL"
+                                            },
+                                            {
+                                                "name": "fldt0hzv1mDkf5wp0",
+                                                "type": "boolean",
+                                                "label": "Enabled"
+                                            },
+                                            {
+                                                "name": "flds1SSlCRBLH0Upn",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Last Run Started"
+                                            },
+                                            {
+                                                "name": "fldJs47VLMSzmg1uU",
+                                                "time": true,
+                                                "type": "date",
+                                                "label": "Last Run Ended"
+                                            },
+                                            {
+                                                "name": "fldTeNG6e7uL4yZcd",
+                                                "type": "number",
+                                                "label": "Last Credits"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Record"
+                                    }
+                                ],
+                                "interface": [
+                                    {
+                                        "name": "id",
+                                        "type": "text",
+                                        "label": "ID"
+                                    },
+                                    {
+                                        "name": "createdTime",
+                                        "type": "date",
+                                        "label": "Created Time"
+                                    },
+                                    {
+                                        "name": "Name",
+                                        "type": "text",
+                                        "label": "Name"
+                                    },
+                                    {
+                                        "name": "Platform",
+                                        "type": "text",
+                                        "label": "Platform"
+                                    },
+                                    {
+                                        "name": "Cadence",
+                                        "type": "text",
+                                        "label": "Cadence"
+                                    },
+                                    {
+                                        "name": "Max Items",
+                                        "type": "number",
+                                        "label": "Max Items"
+                                    },
+                                    {
+                                        "name": "Run Scenario",
+                                        "spec": [
+                                            {
+                                                "name": "label",
+                                                "type": "text",
+                                                "label": "Label"
+                                            },
+                                            {
+                                                "name": "url",
+                                                "type": "url",
+                                                "label": "URL"
+                                            }
+                                        ],
+                                        "type": "collection",
+                                        "label": "Run Scenario"
+                                    },
+                                    {
+                                        "name": "Webhook URL",
+                                        "type": "text",
+                                        "label": "Webhook URL"
+                                    },
+                                    {
+                                        "name": "Enabled",
+                                        "type": "boolean",
+                                        "label": "Enabled"
+                                    },
+                                    {
+                                        "name": "Last Run Started",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Run Started"
+                                    },
+                                    {
+                                        "name": "Last Run Ended",
+                                        "time": true,
+                                        "type": "date",
+                                        "label": "Last Run Ended"
+                                    },
+                                    {
+                                        "name": "Duration",
+                                        "type": "text",
+                                        "label": "Duration"
+                                    },
+                                    {
+                                        "name": "Last Credits",
+                                        "type": "number",
+                                        "label": "Last Credits"
+                                    },
+                                    {
+                                        "name": "Estimated Monthly",
+                                        "type": "text",
+                                        "label": "Estimated Monthly"
+                                    }
+                                ]
+                            },
+                            "onerror": [
+                                {
+                                    "id": 11,
+                                    "module": "airtable:ActionCreateRecord",
+                                    "version": 3,
+                                    "parameters": {
+                                        "__IMTCONN__": 8833273
+                                    },
+                                    "mapper": {
+                                        "base": "appr8MnuDG2NjwMQf",
+                                        "table": "tblM62NW7VKjzaMlA",
+                                        "record": {
+                                            "fld1JqRebvgnXJL5D": "Google Analytics",
+                                            "fld3LSpNtuP64A9Uc": "{{10.error.detail}}",
+                                            "fld5Yla69XWso4SCO": "{{10.error.message}}",
+                                            "fldO1Tv6rFnMB3QsR": "Airtable - Update Schedule",
+                                            "fldS9LQwxJYkJZXfx": "{{var.scenario.executionUrl}}",
+                                            "fldgB78a0WrkXbWpP": "{{var.scenario.name}}",
+                                            "fldmtTfcw0RbZTsja": "{{10.error.type}}"
+                                        },
+                                        "typecast": false,
+                                        "useColumnId": false
+                                    },
+                                    "metadata": {
+                                        "designer": {
+                                            "x": 900,
+                                            "y": 600,
+                                            "name": "Create Error"
+                                        },
+                                        "restore": {
+                                            "expect": {
+                                                "base": {
+                                                    "label": "Mada Index"
+                                                },
+                                                "table": {
+                                                    "label": "Errors",
+                                                    "nested": [
+                                                        {
+                                                            "name": "record",
+                                                            "spec": [
+                                                                {
+                                                                    "mode": "edit",
+                                                                    "name": "fld1JqRebvgnXJL5D",
+                                                                    "type": "select",
+                                                                    "label": "Channel",
+                                                                    "dynamic": true,
+                                                                    "options": [
+                                                                        {
+                                                                            "label": "Facebook",
+                                                                            "value": "Facebook"
+                                                                        },
+                                                                        {
+                                                                            "label": "Google Analytics",
+                                                                            "value": "Google Analytics"
+                                                                        },
+                                                                        {
+                                                                            "label": "Instagram",
+                                                                            "value": "Instagram"
+                                                                        },
+                                                                        {
+                                                                            "label": "LinkedIn",
+                                                                            "value": "LinkedIn"
+                                                                        },
+                                                                        {
+                                                                            "label": "MailChimp",
+                                                                            "value": "MailChimp"
+                                                                        },
+                                                                        {
+                                                                            "label": "Spotify",
+                                                                            "value": "Spotify"
+                                                                        },
+                                                                        {
+                                                                            "label": "Website",
+                                                                            "value": "Website"
+                                                                        },
+                                                                        {
+                                                                            "label": "X",
+                                                                            "value": "X"
+                                                                        },
+                                                                        {
+                                                                            "label": "YouTube",
+                                                                            "value": "YouTube"
+                                                                        }
+                                                                    ],
+                                                                    "validate": false
+                                                                },
+                                                                {
+                                                                    "name": "fldmtTfcw0RbZTsja",
+                                                                    "type": "text",
+                                                                    "label": "Type"
+                                                                },
+                                                                {
+                                                                    "name": "fld5Yla69XWso4SCO",
+                                                                    "type": "text",
+                                                                    "label": "Message"
+                                                                },
+                                                                {
+                                                                    "name": "fld3LSpNtuP64A9Uc",
+                                                                    "type": "text",
+                                                                    "label": "Detail",
+                                                                    "multiline": true
+                                                                },
+                                                                {
+                                                                    "name": "fldgB78a0WrkXbWpP",
+                                                                    "type": "text",
+                                                                    "label": "Scenario"
+                                                                },
+                                                                {
+                                                                    "name": "fldO1Tv6rFnMB3QsR",
+                                                                    "type": "text",
+                                                                    "label": "Module"
+                                                                },
+                                                                {
+                                                                    "name": "fldS9LQwxJYkJZXfx",
+                                                                    "type": "text",
+                                                                    "label": "Execution"
+                                                                },
+                                                                {
+                                                                    "name": "fldGsZ6ZISLfu6dXa",
+                                                                    "type": "boolean",
+                                                                    "label": "Solved"
+                                                                },
+                                                                {
+                                                                    "name": "flda6zjHkcx9g7sdG",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Facebook Post"
+                                                                },
+                                                                {
+                                                                    "name": "fld4RpTrussaxExSA",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Instagram Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldAUagZg6mqldGTD",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Instagram Story"
+                                                                },
+                                                                {
+                                                                    "name": "fldERTHE5DNTYNONM",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "LinkedIn Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldWyeleX8a7a0uO1",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "X Post"
+                                                                },
+                                                                {
+                                                                    "name": "fldaI9y05mGK6wMX4",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "YouTube Video"
+                                                                },
+                                                                {
+                                                                    "name": "fldsekBMu9jsTOEOB",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "MailChimp Email"
+                                                                },
+                                                                {
+                                                                    "name": "fldPP5kJEEh5fTpfO",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "Podcast Episode"
+                                                                },
+                                                                {
+                                                                    "name": "fldpXBf8IRpJvgKRt",
+                                                                    "spec": {
+                                                                        "label": "Record ID"
+                                                                    },
+                                                                    "type": "array",
+                                                                    "label": "WordPress Article"
+                                                                }
+                                                            ],
+                                                            "type": "collection",
+                                                            "label": "Record"
+                                                        }
+                                                    ]
+                                                },
+                                                "record": {
+                                                    "nested": {
+                                                        "fld1JqRebvgnXJL5D": {
+                                                            "mode": "chose",
+                                                            "label": "Google Analytics"
+                                                        },
+                                                        "fld4RpTrussaxExSA": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldAUagZg6mqldGTD": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldERTHE5DNTYNONM": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldGsZ6ZISLfu6dXa": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldPP5kJEEh5fTpfO": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldWyeleX8a7a0uO1": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "flda6zjHkcx9g7sdG": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldaI9y05mGK6wMX4": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldpXBf8IRpJvgKRt": {
+                                                            "mode": "chose"
+                                                        },
+                                                        "fldsekBMu9jsTOEOB": {
+                                                            "mode": "chose"
+                                                        }
+                                                    }
+                                                },
+                                                "typecast": {
+                                                    "mode": "chose"
+                                                },
+                                                "useColumnId": {
+                                                    "mode": "chose"
+                                                }
+                                            },
+                                            "parameters": {
+                                                "__IMTCONN__": {
+                                                    "data": {
+                                                        "scoped": "true",
+                                                        "connection": "airtable3"
+                                                    },
+                                                    "label": "Mada Airtable connection (User ID: usrFpaeOnieLzG9yP)"
+                                                }
+                                            }
+                                        },
+                                        "parameters": [
+                                            {
+                                                "name": "__IMTCONN__",
+                                                "type": "account:airtable3,airtable2",
+                                                "label": "Connection",
+                                                "required": true
+                                            }
+                                        ],
+                                        "expect": [
+                                            {
+                                                "name": "base",
+                                                "type": "select",
+                                                "label": "Base",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "typecast",
+                                                "type": "boolean",
+                                                "label": "Smart links",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "useColumnId",
+                                                "type": "boolean",
+                                                "label": "Use Column ID",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "table",
+                                                "type": "select",
+                                                "label": "Table",
+                                                "required": true
+                                            },
+                                            {
+                                                "name": "record",
+                                                "spec": [
+                                                    {
+                                                        "mode": "edit",
+                                                        "name": "fld1JqRebvgnXJL5D",
+                                                        "type": "select",
+                                                        "label": "Channel"
+                                                    },
+                                                    {
+                                                        "name": "fldmtTfcw0RbZTsja",
+                                                        "type": "text",
+                                                        "label": "Type"
+                                                    },
+                                                    {
+                                                        "name": "fld5Yla69XWso4SCO",
+                                                        "type": "text",
+                                                        "label": "Message"
+                                                    },
+                                                    {
+                                                        "name": "fld3LSpNtuP64A9Uc",
+                                                        "type": "text",
+                                                        "label": "Detail"
+                                                    },
+                                                    {
+                                                        "name": "fldgB78a0WrkXbWpP",
+                                                        "type": "text",
+                                                        "label": "Scenario"
+                                                    },
+                                                    {
+                                                        "name": "fldO1Tv6rFnMB3QsR",
+                                                        "type": "text",
+                                                        "label": "Module"
+                                                    },
+                                                    {
+                                                        "name": "fldS9LQwxJYkJZXfx",
+                                                        "type": "text",
+                                                        "label": "Execution"
+                                                    },
+                                                    {
+                                                        "name": "fldGsZ6ZISLfu6dXa",
+                                                        "type": "boolean",
+                                                        "label": "Solved"
+                                                    },
+                                                    {
+                                                        "name": "flda6zjHkcx9g7sdG",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Facebook Post"
+                                                    },
+                                                    {
+                                                        "name": "fld4RpTrussaxExSA",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Instagram Post"
+                                                    },
+                                                    {
+                                                        "name": "fldAUagZg6mqldGTD",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Instagram Story"
+                                                    },
+                                                    {
+                                                        "name": "fldERTHE5DNTYNONM",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "LinkedIn Post"
+                                                    },
+                                                    {
+                                                        "name": "fldWyeleX8a7a0uO1",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "X Post"
+                                                    },
+                                                    {
+                                                        "name": "fldaI9y05mGK6wMX4",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "YouTube Video"
+                                                    },
+                                                    {
+                                                        "name": "fldsekBMu9jsTOEOB",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "MailChimp Email"
+                                                    },
+                                                    {
+                                                        "name": "fldPP5kJEEh5fTpfO",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "Podcast Episode"
+                                                    },
+                                                    {
+                                                        "name": "fldpXBf8IRpJvgKRt",
+                                                        "spec": {
+                                                            "name": "value",
+                                                            "label": "Record ID"
+                                                        },
+                                                        "type": "array",
+                                                        "label": "WordPress Article"
+                                                    }
+                                                ],
+                                                "type": "collection",
+                                                "label": "Record"
+                                            }
+                                        ],
+                                        "interface": [
+                                            {
+                                                "name": "id",
+                                                "type": "text",
+                                                "label": "ID"
+                                            },
+                                            {
+                                                "name": "createdTime",
+                                                "type": "date",
+                                                "label": "Created Time"
+                                            },
+                                            {
+                                                "name": "Name",
+                                                "type": "text",
+                                                "label": "Name"
+                                            },
+                                            {
+                                                "name": "Channel",
+                                                "type": "text",
+                                                "label": "Channel"
+                                            },
+                                            {
+                                                "name": "Type",
+                                                "type": "text",
+                                                "label": "Type"
+                                            },
+                                            {
+                                                "name": "Message",
+                                                "type": "text",
+                                                "label": "Message"
+                                            },
+                                            {
+                                                "name": "Detail",
+                                                "type": "text",
+                                                "label": "Detail",
+                                                "multiline": true
+                                            },
+                                            {
+                                                "name": "Scenario",
+                                                "type": "text",
+                                                "label": "Scenario"
+                                            },
+                                            {
+                                                "name": "Module",
+                                                "type": "text",
+                                                "label": "Module"
+                                            },
+                                            {
+                                                "name": "Execution",
+                                                "type": "text",
+                                                "label": "Execution"
+                                            },
+                                            {
+                                                "name": "Solved",
+                                                "type": "boolean",
+                                                "label": "Solved"
+                                            },
+                                            {
+                                                "name": "Facebook Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Facebook Post"
+                                            },
+                                            {
+                                                "name": "Instagram Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Instagram Post"
+                                            },
+                                            {
+                                                "name": "Instagram Story",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Instagram Story"
+                                            },
+                                            {
+                                                "name": "LinkedIn Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "LinkedIn Post"
+                                            },
+                                            {
+                                                "name": "X Post",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "X Post"
+                                            },
+                                            {
+                                                "name": "YouTube Video",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "YouTube Video"
+                                            },
+                                            {
+                                                "name": "MailChimp Email",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "MailChimp Email"
+                                            },
+                                            {
+                                                "name": "Podcast Episode",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "Podcast Episode"
+                                            },
+                                            {
+                                                "name": "WordPress Article",
+                                                "spec": {
+                                                    "label": "Record ID"
+                                                },
+                                                "type": "array",
+                                                "label": "WordPress Article"
+                                            },
+                                            {
+                                                "name": "Created",
+                                                "type": "date",
+                                                "label": "Created"
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "metadata": {
+        "instant": true,
+        "version": 1,
+        "scenario": {
+            "roundtrips": 1,
+            "maxErrors": 3,
+            "autoCommit": true,
+            "autoCommitTriggerLast": true,
+            "sequential": false,
+            "slots": null,
+            "confidential": false,
+            "dataloss": false,
+            "dlq": false,
+            "freshVariables": false
+        },
+        "designer": {
+            "orphans": []
+        },
+        "zone": "us2.make.com",
+        "notes": []
+    }
+}

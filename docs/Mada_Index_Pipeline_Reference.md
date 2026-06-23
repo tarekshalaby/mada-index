@@ -1,6 +1,6 @@
 # Mada Index — Data Pipeline & Integrations Reference
 
-**Version 1.1 · June 2026**
+**Version 1.2 · June 2026**
 **Make.com team:** Mada · **Airtable base:** `appr8MnuDG2NjwMQf`
 
 How data gets from the platforms into Airtable, how the 14 scenarios are wired together, what every table holds, and what breaks (and why).
@@ -183,7 +183,7 @@ Table ID: `tblQk4zbxF3kJYJWO`. One row per tracked link (Bitly, MailChimp tracke
 | `Clicks: YouTube` | `fldj2daJ6i5FU919e` | number | Clicks from `youtube.com` / `youtu.be` |
 | `Clicks: LinkedIn` | `fldnTzUVq7GDajiZJ` | number | Clicks from `linkedin.com` / `lnkd.in` |
 | `Clicks: Other` | `flduOYAe0llmAqs7h` | number | All remaining referrers |
-| `Created/Bitly` | `fldBmkDy4CxNSpblB` | dateTime | Bitly link creation date — sort field for Bitly Analytics |
+| `Created` | `fldBmkDy4CxNSpblB` | dateTime | Bitly link creation date — sort field for Bitly Analytics |
 | `Last Synced` | `fld7C1tt6Sl2rSZBY` | dateTime | When Bitly Analytics last refreshed this row |
 | `Origin` | `fldtp9ZADTBROPQ6f` | linkedRecord | Content row(s) that published this link |
 | `Destination` | `fld8VIVFKYgavs9M4` | linkedRecord | Content row(s) this link points to |
@@ -528,22 +528,18 @@ This means: 4-Hourly workers run every time; Daily workers run at 08:00; Weekly 
 
 ---
 
-### C13 · Links Analytics
+### C13 · Links Discovery
 
-**Purpose:** discovers outbound links in social post captions and MailChimp campaigns, creates Links rows for new ones, resolves destination articles, and aggregates inbound Site Clicks back to destination Content rows. This scenario is **post-driven** — a post exits the filter as soon as it has any Outbound Link, so each post is processed once. Bitly click-count refresh on existing Links rows is handled by the separate Bitly Links Analytics scenario (C14).
+**Purpose:** discovers outbound links in social post captions and MailChimp campaigns, creates Links rows for new ones, resolves destination articles, and writes initial Bitly click counts at discovery time. This scenario is **post-driven** — a post exits the filter permanently as soon as it has any Outbound Link. Ongoing Bitly click-count refresh is handled by the separate Bitly Links Analytics scenario (C14). `Content.Site Clicks` is an Airtable rollup (sum of `Links.Total Clicks` for incoming Links rows) — no Make step is needed for aggregation.
 
 **Trigger:** Scheduler (Daily — see DL-34; previously 4-Hourly).
 
 **Module flow:**
 1. Webhook receives `{syncRecordId}`
-2. `Update Schedule` — writes `Last Run Started`
-3. Routes through three branches:
-   - **Branch A — MailChimp click refresh:**
-     - `Search for Emails` — finds MailChimp Email rows sent within the last **7 days** (reduced from 150 — see DL-33). Email clicks saturate within ~48h and are frozen by ~7 days; the narrow window keeps credit consumption low while staying current.
-     - For each email: `Click Details` — calls Mailchimp `/3.0/campaigns/{id}/click-details` to enumerate every tracked link and its click count.
-     - For each link: `Search for Link` → Create or Update Links row (Source = MailChimp).
-   - **Branch B — New social post discovery:**
-     - `Search Articles with Links` — finds Content rows with no Outbound Links that contain a year-path mirror URL or a Bitly link (see DL-32 for the dual-type rationale):
+2. **Start route:** `Update Schedule` — writes `Last Run Started`
+3. **Analytics router:**
+   - **Article Links branch:**
+     - `Search Articles with Links` — finds Content rows with no Outbound Links that contain a year-path mirror URL or a Bitly link (dual-type rationale: DL-32):
        ```
        AND(
          OR(
@@ -556,19 +552,21 @@ This means: 4-Hourly workers run every time; Daily workers run at 08:00; Weekly 
          LEN({Outbound Links} & "") = 0
        )
        ```
-       The `bit.ly/m/` exclusion drops Linkin.bio launchpads (handled by the Instagram Posts scenario). The final `LEN` clause ensures a post exits the filter permanently once it has any Outbound Link.
+       The `bit.ly/m/` exclusion drops Linkin.bio launchpads (handled by the Instagram Posts scenario). The final `LEN` clause ensures a post exits permanently once it has any Outbound Link.
      - `Extract Link` — regex Text Parser, input: `ifempty({Caption Links}; {Caption})`. X posts yield the mirror URL from Caption Links; FB and LinkedIn fall back to the bit.ly URL in Caption.
-     - **All-Links route** (direct/mirror URLs — typically X): resolves destination from URL Path → `Search for Content` → `Search for Link` → Create or Update Links row (Source = Caption).
-     - **Bitly route** (bit.ly links — typically FB/LinkedIn): creates a Links row (Source = Bitly); click counts are populated later by Bitly Links Analytics (C14).
-   - **Branch C — Inbound click aggregation:**
-     - Aggregates `Links.Total Clicks` from resolved Links rows back to destination `Content.Site Clicks` rollup.
-4. `Update Schedule` — writes `Last Run Ended`
+     - **Bitly sub-route** (bit.ly links — typically FB/LinkedIn): `Get Referrers` → Bitly API `/v4/bitlinks/{link}/referrers` with `units=-1` (returns all available referrer history) → `Get Link Info` → `Path & Type Variables` → `Search for Article` (by URL Path) → Create or Update Links row **with click counts written immediately** (Total Clicks + per-platform breakdown) → `Add Content to Story` if story found.
+     - **All-Links sub-route** (direct/mirror URLs — typically X): `Get Full URL` (HTTP resolve) → path extraction → `Search for Content` (by URL Path) → Create or Update Links row (no click counts — direct URLs don't have Bitly referrer data) → `Add Content to Story`.
+   - **MailChimp Emails branch:**
+     - `Search for Emails` — finds MailChimp Email rows where `{Content} != ""`, `{Emails Sent} > 50`, and sent within the last **7 days** (reduced from 150 — see DL-33). Email clicks saturate within ~48h; the narrow window keeps credit consumption low.
+     - `Click Details` — calls Mailchimp `/reports/{campaign_id}/click-details` with `count=1000`.
+     - Aggregates clicks per URL → `Search for Link` (Key = `{campaign_id}-{url_path}`) → Create or Update Links row (`Total Clicks` = sum of tracked clicks, `Last Synced` = now, `Destination` = matched article if found).
+4. **Finish route:** `Update Schedule` — writes `Last Run Ended` + `Last Credits`
 
-**What it writes:** Links table (Key, Source, Short Link, Long URL, URL Path, Destination Type, linked Destination Content, Last Synced). Updates `Content.Site Clicks` on destination article rows via the Links → Content rollup.
+**What it writes:** Links table (Key, Source, Short Link, Long URL, URL Path, Destination Type, Destination Content, Total Clicks + per-platform Clicks for Bitly links, Last Synced). `Content.Site Clicks` is an Airtable rollup — not written directly by this scenario.
 
 **Why destination-anchored (DL-07):** Site Clicks are counted at the destination article, not the origin post. Two posts linking to the same article each create separate Links rows, but the article's Site Clicks field is the sum — no double-counting.
 
-**Blueprint note:** the stored blueprint (`Links Analytics.blueprint (1).json`) pre-dates the dual-type filter, the 7-day MailChimp window, and the `ifempty` Extract Link input — it is **stale**. Re-export from Make before using it for restoration.
+**Blueprint:** `Links Discovery.blueprint.json` — current as of June 2026. The older `Links Analytics.blueprint (1).json` is superseded.
 
 ---
 
@@ -582,26 +580,26 @@ This means: 4-Hourly workers run every time; Daily workers run at 08:00; Weekly 
 1. Webhook receives `{syncRecordId}`
 2. `Update Schedule` — writes `Last Run Started`
 3. **Analytics loop:**
-   - `Get Links` — searches Links table (`tblQk4zbxF3kJYJWO`) for rows where `Source = Bitly` (choice `selxxFHyWZOe73734`), sorted by `Created/Bitly` (`fldBmkDy4CxNSpblB`) descending, up to `Max Items` records from the matched Sync Settings row. Descending sort prioritises newer links whose referrer window still covers most of the link's lifetime.
-   - `Get Referrers` — Bitly API call: `GET /v4/bitlinks/{Key}/referrers`. Response: `metrics[]` of `{value: referrer, clicks: N}`.
-   - `Update Link` — writes back to the Links row:
+   - `Get Links` — searches Links table (`tblQk4zbxF3kJYJWO`) for rows where `AND({Source} = "Bitly", {Key} != "")`, sorted by `Created` (`fldBmkDy4CxNSpblB`) descending, up to `Max Items` records from the matched Sync Settings row. Descending sort prioritises newer links whose referrer window still covers most of the link's lifetime.
+   - `Get Referrers` — Bitly API call: `GET /v4/bitlinks/{Key}/referrers?unit=day&units=-1`. The `units=-1` requests the full available history. Response: `metrics[]` of `{value: referrer, clicks: N}`.
+   - `Update Link` — writes back to the Links row using exact referrer-value string matching:
      - `Total Clicks` (`fld27efh0rgraNo8r`) = sum of all referrer clicks
-     - `Clicks: Facebook` (`fld6E4c3BZXxOmHOs`) = clicks from `facebook.com` / `fb.com` / `m.facebook.com`
-     - `Clicks: X` (`fld8DExQmPAROs7zT`) = clicks from `t.co` / `twitter.com` / `x.com`
-     - `Clicks: Direct` (`fldVFIDO7lN7hJa87`) = clicks with no referrer
-     - `Clicks: Instagram` (`fldLgLINhpn6UFZ54`) = clicks from `instagram.com` / `l.instagram.com`
-     - `Clicks: YouTube` (`fldj2daJ6i5FU919e`) = clicks from `youtube.com` / `youtu.be`
-     - `Clicks: LinkedIn` (`fldnTzUVq7GDajiZJ`) = clicks from `linkedin.com` / `lnkd.in`
-     - `Clicks: Other` (`flduOYAe0llmAqs7h`) = sum of all remaining referrers
+     - `Clicks: Facebook` (`fld6E4c3BZXxOmHOs`) = referrer value `"Facebook"`
+     - `Clicks: X` (`fld8DExQmPAROs7zT`) = referrer value `"X (Formerly Twitter)"`
+     - `Clicks: Direct` (`fldVFIDO7lN7hJa87`) = referrer value `"direct"`
+     - `Clicks: Instagram` (`fldLgLINhpn6UFZ54`) = referrer values `"Instagram"` + `"Bitly Pages"` (Bitly's internal preview page clicks are attributed here)
+     - `Clicks: YouTube` (`fldj2daJ6i5FU919e`) = referrer value `"YouTube"`
+     - `Clicks: LinkedIn` (`fldnTzUVq7GDajiZJ`) = referrer value `"LinkedIn"`
+     - `Clicks: Other` (`flduOYAe0llmAqs7h`) = Total Clicks minus all six named channels above
      - `Last Synced` (`fld7C1tt6Sl2rSZBY`) = now
 4. `Update Schedule` — writes `Last Run Ended` + `Last Credits`
 5. Error handler on work modules → Errors table
 
 **What it writes:** updates existing Links rows only (Total Clicks + six per-platform Clicks fields + Last Synced). Does not create records.
 
-**Known limitation — bounded referrer window:** Bitly's referrer API covers a sliding retention window (observed ~141 days on the current plan). For Bitly links older than that window, `Total Clicks` reflects only the windowed period, not all-time, and drifts downward as the window advances. The descending-sort heuristic keeps the freshest links prioritised; old evergreen links will eventually undercount. Potential future fix: `units=-1` (lifetime aggregation) if the Bitly plan supports it (see DL-31).
+**Known limitation — bounded referrer window:** the call uses `units=-1` to request the full available referrer history, but Bitly's plan determines the actual retention window (observed ~141 days). For links older than the retention window, `Total Clicks` reflects only the available period and drifts downward as the window advances. The descending-sort heuristic keeps the freshest links prioritised; old evergreen links will eventually undercount (see DL-31).
 
-**Blueprint:** not yet exported from Make. Export and store as `docs/blueprints/Bitly Links Analytics.blueprint.json` before the next scheduled maintenance window.
+**Blueprint:** `Bitly Links Analytics.blueprint.json` — current as of June 2026.
 
 ---
 
@@ -655,8 +653,6 @@ For workers that write to Content on the create path, the fields written are a s
 
 Scenario blueprints are stored in `docs/blueprints/` in this repo. They can be imported into Make if a scenario is ever corrupted or accidentally deleted. To restore a scenario: Make.com → Scenarios → ⊕ New → Import Blueprint → upload the `.json` file → reconnect all connections and configure the Data Store references.
 
-> **Stale / missing blueprints (as of June 2026):** `Links Analytics.blueprint (1).json` is **stale** — it pre-dates the dual-type filter, the 7-day MailChimp window, and the `ifempty` Extract Link input. `Bitly Links Analytics` has **no blueprint yet** — the scenario was created directly in Make and has not been exported. Both need re-export from Make before the next maintenance window.
-
 | Blueprint file | Scenario | Status |
 |---|---|---|
 | `Scheduler.blueprint.json` | Scheduler | Current |
@@ -671,9 +667,10 @@ Scenario blueprints are stored in `docs/blueprints/` in this repo. They can be i
 | `MailChimp Emails Analytics.blueprint (1).json` | MailChimp Emails | Current |
 | `Spotify Episodes Analytics.blueprint (1).json` | Spotify Episodes | Current |
 | `Platform Followers.blueprint.json` | Platform Followers | Current |
-| `Links Analytics.blueprint (1).json` | Links Analytics | **Stale** — re-export needed |
-| *(not yet exported)* | Bitly Links Analytics | **Missing** — export after creation |
+| `Links Discovery.blueprint.json` | Links Discovery (C13) | Current |
+| `Bitly Links Analytics.blueprint.json` | Bitly Links Analytics (C14) | Current |
+| `Links Analytics.blueprint (1).json` | *(superseded)* | **Superseded** by Links Discovery |
 
 ---
 
-*End of Pipeline & Integrations Reference (v1.1).*
+*End of Pipeline & Integrations Reference (v1.2).*
